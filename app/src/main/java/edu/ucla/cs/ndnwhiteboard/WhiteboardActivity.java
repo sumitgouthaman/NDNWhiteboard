@@ -6,6 +6,7 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -46,6 +47,8 @@ public class WhiteboardActivity extends ActionBarActivity {
         button_color4 = (ImageButton) findViewById(R.id.button_color4);
 //        button_color5 = (ImageButton) findViewById(R.id.button_color5);
 
+        drawingView_canvas.setActivity(this);
+
         button_eraser.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -61,40 +64,38 @@ public class WhiteboardActivity extends ActionBarActivity {
         });
 
         button_save.setOnClickListener(new View.OnClickListener() {
-                                           @Override
-                                           public void onClick(View v) {
-                                               drawingView_canvas.setDrawingCacheEnabled(true);
-                                               Date date = new Date();
-                                               Format formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss");
-                                               String fileName = formatter.format(date) + ".png";
+            @Override
+            public void onClick(View v) {
+                drawingView_canvas.setDrawingCacheEnabled(true);
+                Date date = new Date();
+                Format formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss");
+                String fileName = formatter.format(date) + ".png";
 
-                                               if (android.os.Environment.getExternalStorageState().equals(
-                                                       android.os.Environment.MEDIA_MOUNTED)) {
-                                                   File sdCard = Environment.getExternalStorageDirectory();
-                                                   File dir = new File(sdCard.getAbsolutePath() + "/NDN_Whiteboard");
-                                                   dir.mkdirs();
-                                                   File file = new File(dir, fileName);
-                                                   ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                                                   drawingView_canvas.getDrawingCache().compress(Bitmap.CompressFormat.PNG, 100, baos);
-                                                   FileOutputStream f = null;
-                                                   try {
-                                                       f = new FileOutputStream(file);
-                                                       if (f != null) {
-                                                           f.write(baos.toByteArray());
-                                                           f.flush();
-                                                           f.close();
-                                                           Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
-                                                       }
-                                                   } catch (Exception e) {
-                                                       e.printStackTrace();
-                                                       Toast.makeText(getApplicationContext(), "Save Failed!", Toast.LENGTH_SHORT).show();
-                                                   }
-                                               }
+                if (android.os.Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED)) {
+                    File sdCard = Environment.getExternalStorageDirectory();
+                    File dir = new File(sdCard.getAbsolutePath() + "/NDN_Whiteboard");
+                    dir.mkdirs();
+                    File file = new File(dir, fileName);
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    drawingView_canvas.getDrawingCache().compress(Bitmap.CompressFormat.PNG, 100, baos);
+                    FileOutputStream f = null;
+                    try {
+                        f = new FileOutputStream(file);
+                        if (f != null) {
+                           f.write(baos.toByteArray());
+                           f.flush();
+                           f.close();
+                           Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (Exception e) {
+                       e.printStackTrace();
+                       Toast.makeText(getApplicationContext(), "Save Failed!", Toast.LENGTH_SHORT).show();
+                    }
+                }
 
-                                               drawingView_canvas.destroyDrawingCache();
-                                           }
-                                       }
-        );
+                drawingView_canvas.destroyDrawingCache();
+            }
+        });
 
         button_color1.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -157,5 +158,9 @@ public class WhiteboardActivity extends ActionBarActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    public void callback() {
+        Log.i("WhiteboardActivity", "callback");
     }
 }

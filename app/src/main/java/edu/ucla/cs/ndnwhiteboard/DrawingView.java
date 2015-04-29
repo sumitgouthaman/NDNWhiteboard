@@ -1,5 +1,6 @@
 package edu.ucla.cs.ndnwhiteboard;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
@@ -7,11 +8,19 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Bitmap;
+import android.graphics.PointF;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.graphics.drawable.Drawable;
 import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.view.View;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 
 /**
  * TODO: document your custom view class.
@@ -26,13 +35,21 @@ public class DrawingView extends View {
     //drawing and canvas paint
     private Paint drawPaint, canvasPaint;
     //initial color
-    private int defaultPaintColor = 0xFF000000;
-    private int eraserPaintColor = 0xFFFFFFFF;
-    private int[] colors = {0xFF000000, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFF00};
+    private int defaultPaintColor = Color.BLACK;
+    private int eraserPaintColor = Color.WHITE;
+    private int[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW};
     //canvas
     private Canvas drawCanvas;
     //canvas bitmap
     private Bitmap canvasBitmap;
+
+    private JSONObject jsonObject = new JSONObject();
+    private ArrayList<PointF> points = new ArrayList<>();
+    private WhiteboardActivity activity;
+
+    public void setActivity(WhiteboardActivity activity) {
+        this.activity = activity;
+    }
 
     public DrawingView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -71,13 +88,39 @@ public class DrawingView extends View {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 drawPath.moveTo(touchX, touchY);
+                try {
+                    jsonObject = new JSONObject();
+                    jsonObject.put("type", (isEraser) ? "eraser" : "pen");
+                    if (!isEraser) {
+                        jsonObject.put("color", currentColor);
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                points.add(new PointF(touchX, touchY));
                 break;
             case MotionEvent.ACTION_MOVE:
                 drawPath.lineTo(touchX, touchY);
+                points.add(new PointF(touchX, touchY));
                 break;
             case MotionEvent.ACTION_UP:
                 drawCanvas.drawPath(drawPath, drawPaint);
                 drawPath.reset();
+                try {
+                    JSONArray coordinates = new JSONArray();
+                    for (PointF p : points) {
+                        JSONArray ja = new JSONArray();
+                        ja.put((int) p.x);
+                        ja.put((int) p.y);
+                        coordinates.put(ja);
+                    }
+                    jsonObject.put("coordinates", coordinates);
+                    points.clear();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                Log.i("DrawingView", String.valueOf(jsonObject));
+                activity.callback();
                 break;
             default:
                 return false;
