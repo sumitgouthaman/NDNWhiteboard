@@ -1,19 +1,15 @@
 package edu.ucla.cs.ndnwhiteboard;
 
-import android.app.Activity;
 import android.content.Context;
-import android.content.res.TypedArray;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.Bitmap;
 import android.graphics.PointF;
+import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
-import android.graphics.drawable.Drawable;
-import android.text.TextPaint;
-import android.util.AttributeSet;
 import android.view.View;
 
 import org.json.JSONArray;

@@ -1,11 +1,9 @@
 package edu.ucla.cs.ndnwhiteboard;
 
 import android.graphics.Bitmap;
-import android.media.Image;
-import android.os.Environment;
-import android.provider.MediaStore;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.os.Environment;
+import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -15,12 +13,10 @@ import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.UUID;
 
 
 public class WhiteboardActivity extends ActionBarActivity {
