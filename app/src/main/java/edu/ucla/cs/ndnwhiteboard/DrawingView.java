@@ -93,11 +93,11 @@ public class DrawingView extends View {
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
-                points.add(new PointF(touchX / viewWidth, touchY / viewWidth));
+                points.add(new PointF(touchX, touchY));
                 break;
             case MotionEvent.ACTION_MOVE:
                 drawPath.lineTo(touchX, touchY);
-                points.add(new PointF(touchX / viewWidth, touchY / viewWidth));
+                points.add(new PointF(touchX, touchY));
                 break;
             case MotionEvent.ACTION_UP:
                 drawCanvas.drawPath(drawPath, drawPaint);
@@ -106,8 +106,8 @@ public class DrawingView extends View {
                     JSONArray coordinates = new JSONArray();
                     for (PointF p : points) {
                         JSONArray ja = new JSONArray();
-                        ja.put(p.x);
-                        ja.put(p.y);
+                        ja.put(p.x / viewWidth);
+                        ja.put(p.y / viewWidth);
                         coordinates.put(ja);
                     }
                     jsonObject.put("coordinates", coordinates);
