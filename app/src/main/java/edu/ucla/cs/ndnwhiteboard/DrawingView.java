@@ -11,6 +11,7 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -25,14 +26,13 @@ public class DrawingView extends View {
 
     private boolean isEraser = false;
     private int currentColor = 0;
+    private int viewWidth = 0;
 
     //drawing path
-    private Path drawPath;
+    private Path drawPath = new Path();
     //drawing and canvas paint
-    private Paint drawPaint, canvasPaint;
-    //initial color
-    private int defaultPaintColor = Color.BLACK;
-    private int eraserPaintColor = Color.WHITE;
+    private Paint drawPaint = new Paint(), canvasPaint = new Paint(Paint.DITHER_FLAG);
+    //colors
     private int[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW};
     //canvas
     private Canvas drawCanvas;
@@ -40,6 +40,7 @@ public class DrawingView extends View {
     private Bitmap canvasBitmap;
 
     private JSONObject jsonObject = new JSONObject();
+    private ArrayList<String> history = new ArrayList<>();
     private ArrayList<PointF> points = new ArrayList<>();
     private WhiteboardActivity activity;
 
@@ -53,22 +54,21 @@ public class DrawingView extends View {
     }
 
     private void setupDrawing() {
-        drawPath = new Path();
-        drawPaint = new Paint();
-        drawPaint.setColor(defaultPaintColor);
+        drawPaint.setColor(Color.BLACK);
         drawPaint.setAntiAlias(true);
         drawPaint.setStrokeWidth(5);
         drawPaint.setStyle(Paint.Style.STROKE);
         drawPaint.setStrokeJoin(Paint.Join.ROUND);
         drawPaint.setStrokeCap(Paint.Cap.ROUND);
-        canvasPaint = new Paint(Paint.DITHER_FLAG);
     }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        canvasBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        viewWidth = w;
+        canvasBitmap = Bitmap.createBitmap(w, (int) (7/5f * w), Bitmap.Config.ARGB_8888);
         drawCanvas = new Canvas(canvasBitmap);
+        activity.drawInitialCanvas();
     }
 
     @Override
@@ -93,11 +93,11 @@ public class DrawingView extends View {
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
-                points.add(new PointF(touchX, touchY));
+                points.add(new PointF(touchX / viewWidth, touchY / viewWidth));
                 break;
             case MotionEvent.ACTION_MOVE:
                 drawPath.lineTo(touchX, touchY);
-                points.add(new PointF(touchX, touchY));
+                points.add(new PointF(touchX / viewWidth, touchY / viewWidth));
                 break;
             case MotionEvent.ACTION_UP:
                 drawCanvas.drawPath(drawPath, drawPaint);
@@ -106,8 +106,8 @@ public class DrawingView extends View {
                     JSONArray coordinates = new JSONArray();
                     for (PointF p : points) {
                         JSONArray ja = new JSONArray();
-                        ja.put((int) p.x);
-                        ja.put((int) p.y);
+                        ja.put(p.x);
+                        ja.put(p.y);
                         coordinates.put(ja);
                     }
                     jsonObject.put("coordinates", coordinates);
@@ -115,8 +115,9 @@ public class DrawingView extends View {
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
-                Log.i("DrawingView", String.valueOf(jsonObject));
-                activity.callback();
+                String jsonString = String.valueOf(jsonObject);
+                history.add(jsonString);
+                activity.callback(jsonString);
                 break;
             default:
                 return false;
@@ -125,28 +126,96 @@ public class DrawingView extends View {
         return true;
     }
 
+    public void setPencil() {
+        setColor(currentColor);
+    }
+
     public void setEraser() {
-        drawPaint.setColor(eraserPaintColor);
+        activity.setButtonColor(Color.WHITE);
+        drawPaint.setColor(Color.WHITE);
         drawPaint.setStrokeWidth(40);
         isEraser = true;
     }
 
-    public void setPencil() {
+    private void setColor(int c) {
+        currentColor = c;
+        activity.setButtonColor(colors[currentColor]);
         drawPaint.setColor(colors[currentColor]);
         drawPaint.setStrokeWidth(5);
         isEraser = false;
     }
 
-    public void setColor(int c) {
-        currentColor = c;
-        drawPaint.setColor(colors[currentColor]);
-        drawPaint.setStrokeWidth(5);
-        isEraser = false;
+    public void incrementColor() {
+        if (!isEraser && ++currentColor > 4) {
+            currentColor = 0;
+        }
+        setColor(currentColor);
+    }
+
+    public void undo() {
+        if (history.isEmpty()) {
+            Toast.makeText(activity, "No more history", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        history.remove(history.size() - 1);
+        drawCanvas.drawColor(Color.WHITE);
+        for (String string : history) {
+            parseJSON(string, false);
+        }
+        invalidate();
     }
 
     public void clear() {
-        drawCanvas.drawColor(eraserPaintColor);
+        history.clear();
+        drawCanvas.drawColor(Color.WHITE);
         invalidate();
+    }
+
+    public void callback(String string) {
+        parseJSON(string, true);
+    }
+    private void parseJSON(String string, boolean addToHistory) {
+        try {
+            JSONObject jsonObject = new JSONObject(string);
+            try {
+                int colorBefore = currentColor;
+                boolean isEraserBefore = isEraser;
+                String type = jsonObject.get("type").toString();
+                if (type.equals("pen")) {
+                    int color = jsonObject.getInt("color");
+                    setColor(color);
+                } else if (type.equals("eraser")) {
+                    setEraser();
+                } else {
+                    throw new JSONException("");
+                }
+                JSONArray coordinates = jsonObject.getJSONArray("coordinates");
+                JSONArray startPoint = coordinates.getJSONArray(0);
+                float touchX = (float) startPoint.getDouble(0) * viewWidth;
+                float touchY = (float) startPoint.getDouble(1) * viewWidth;
+                drawPath.moveTo(touchX, touchY);
+                for (int i = 1; i < coordinates.length(); i++) {
+                    JSONArray point = coordinates.getJSONArray(i);
+                    float x = (float) point.getDouble(0) * viewWidth;
+                    float y = (float) point.getDouble(1) * viewWidth;
+                    drawPath.lineTo(x, y);
+                }
+                drawCanvas.drawPath(drawPath, drawPaint);
+                drawPath.reset();
+                if (addToHistory) {
+                    history.add(string);
+                }
+                if (isEraserBefore) {
+                    setEraser();
+                } else {
+                    setColor(colorBefore);
+                }
+            } catch (JSONException e) {
+                Log.i("DrawingView", "JSON string error: " + string);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
 }
