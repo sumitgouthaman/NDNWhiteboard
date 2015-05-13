@@ -28,7 +28,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/button_pencil"
-                android:src="@drawable/ic_action_edit" />
+                android:src="@drawable/ic_action_marker" />
 
             <ImageButton
                 android:layout_width="wrap_content"
