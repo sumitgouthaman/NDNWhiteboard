@@ -18,6 +18,7 @@ import android.widget.Toast;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -110,6 +111,11 @@ public class WhiteboardActivity extends ActionBarActivity {
 
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        new FetchTask().execute();
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -144,18 +150,18 @@ public class WhiteboardActivity extends ActionBarActivity {
 
     private void confirmErase() {
         new AlertDialog.Builder(this)
-        .setIcon(android.R.drawable.ic_dialog_alert)
-        .setTitle("Confirm erase")
-        .setMessage("Are you sure you want to erase the canvas?")
-        .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                drawingView_canvas.clear();
-            }
+            .setIcon(android.R.drawable.ic_dialog_alert)
+            .setTitle("Confirm erase")
+            .setMessage("Are you sure you want to erase the canvas?")
+            .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    drawingView_canvas.clear();
+                }
 
-        })
-        .setNegativeButton("No", null)
-        .show();
+            })
+            .setNegativeButton("No", null)
+            .show();
     }
 
     private void confirmSave() {
@@ -194,8 +200,8 @@ public class WhiteboardActivity extends ActionBarActivity {
                     drawingView_canvas.destroyDrawingCache();
                 }
             })
-        .setNegativeButton("No", null)
-        .show();
+            .setNegativeButton("No", null)
+            .show();
     }
 
     public void drawInitialCanvas() {
@@ -245,7 +251,6 @@ public class WhiteboardActivity extends ActionBarActivity {
         private String m_retVal = "not changed";
         private Face m_face;
         private boolean m_shouldStop = false;
-        private int retry = 10;
 
         @Override
         protected String doInBackground(Void... voids) {
@@ -253,22 +258,20 @@ public class WhiteboardActivity extends ActionBarActivity {
             try {
                 m_face = new Face("localhost");
                 Log.i("Main", "face created");
-                m_face.expressInterest(new Name(prefix + "register"),
+                m_face.expressInterest(new Name("/ndn/edu/ucla/remap/ping"),
                         new OnData() {
                             @Override
                             public void
                             onData(Interest interest, Data data) {
                                 m_retVal = data.getContent().toString();
+                                Log.i("NDN", data.getContent().toHex());
                                 m_shouldStop = true;
                             }
                         },
                         new OnTimeout() {
                             @Override
                             public void onTimeout(Interest interest) {
-                                Log.i("Main", "ERROR: Timeout -> retry");
-                                if (--retry == 0 ) {
-                                    m_shouldStop = true;
-                                }
+                                m_retVal = "ERROR: Timeout trying";
                             }
                         });
 
@@ -289,7 +292,16 @@ public class WhiteboardActivity extends ActionBarActivity {
         @Override
         protected void onPostExecute(String result)
         {
-            //text.setText(m_retVal);
+            if (m_retVal.contains("ERROR:")) {
+                new AlertDialog.Builder(WhiteboardActivity.this)
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .setTitle("Error received")
+                    .setMessage(m_retVal)
+                    .setPositiveButton("OK", null)
+                    .show();
+            } else {
+                Log.i("NDN", m_retVal);
+            }
         }
 
     }
