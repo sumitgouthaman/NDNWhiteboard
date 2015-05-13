@@ -22,4 +22,10 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.android.support:appcompat-v7:22.0.0'
+    compile 'net.named-data:jndn:0.5'
+    compile 'net.named-data.jndn-xx:jndn-xx-util:0.0.1'
+//
+//    compile 'com.intel.jndn.utils:jndn-utils:0.9.7'
+//    compile 'com.intel.jndn.management:jndn-management:0.9.7'
+//    compile 'joda-time:joda-time:2.7'
 }

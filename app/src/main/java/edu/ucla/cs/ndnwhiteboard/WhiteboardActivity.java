@@ -2,7 +2,9 @@ package edu.ucla.cs.ndnwhiteboard;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Bitmap;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v7.app.ActionBarActivity;
@@ -20,6 +22,13 @@ import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import net.named_data.jndn.Data;
+import net.named_data.jndn.Face;
+import net.named_data.jndn.Interest;
+import net.named_data.jndn.Name;
+import net.named_data.jndn.OnData;
+import net.named_data.jndn.OnTimeout;
+
 
 public class WhiteboardActivity extends ActionBarActivity {
 
@@ -30,11 +39,24 @@ public class WhiteboardActivity extends ActionBarActivity {
     private ImageButton button_save;
     private ImageButton button_undo;
     private ImageButton button_clear;
+    private String username;
+    private String whiteboard;
+    private String prefix;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_whiteboard);
+
+        Intent introIntent = getIntent();
+        this.username = introIntent.getExtras().getString("name");
+        this.whiteboard = introIntent.getExtras().getString("whiteboard").replaceAll("\\s","");
+        this.prefix = introIntent.getExtras().getString("prefix");
+        Log.i("WhiteboardActivity", "username: " + this.username);
+        Log.i("WhiteboardActivity", "whiteboard: " + this.whiteboard);
+        Log.i("WhiteboardActivity", "prefix: " + this.prefix);
+        Toast.makeText(getApplicationContext(), "Welcome " + this.username, Toast.LENGTH_SHORT).show();
+
         drawingView_canvas = (DrawingView) findViewById(R.id.drawingview_canvas);
         button_pencil = (ImageButton) findViewById(R.id.button_pencil);
         button_eraser = (ImageButton) findViewById(R.id.button_eraser);
@@ -217,5 +239,58 @@ public class WhiteboardActivity extends ActionBarActivity {
         for (String string : lines) {
             drawingView_canvas.callback(string);
         }
+    }
+
+    private class FetchTask extends AsyncTask<Void, Void, String> {
+        private String m_retVal = "not changed";
+        private Face m_face;
+        private boolean m_shouldStop = false;
+        private int retry = 10;
+
+        @Override
+        protected String doInBackground(Void... voids) {
+            Log.i("Main", "doInBackground called");
+            try {
+                m_face = new Face("localhost");
+                Log.i("Main", "face created");
+                m_face.expressInterest(new Name(prefix + "register"),
+                        new OnData() {
+                            @Override
+                            public void
+                            onData(Interest interest, Data data) {
+                                m_retVal = data.getContent().toString();
+                                m_shouldStop = true;
+                            }
+                        },
+                        new OnTimeout() {
+                            @Override
+                            public void onTimeout(Interest interest) {
+                                Log.i("Main", "ERROR: Timeout -> retry");
+                                if (--retry == 0 ) {
+                                    m_shouldStop = true;
+                                }
+                            }
+                        });
+
+                while (!m_shouldStop) {
+                    m_face.processEvents();
+                    Log.i("Main", "loop");
+                    Thread.sleep(500);
+                }
+                m_face.shutdown();
+                m_face = null;
+                return m_retVal;
+            } catch (Exception e) {
+                m_retVal = "ERROR: " + e.getMessage();
+                return m_retVal;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result)
+        {
+            //text.setText(m_retVal);
+        }
+
     }
 }
