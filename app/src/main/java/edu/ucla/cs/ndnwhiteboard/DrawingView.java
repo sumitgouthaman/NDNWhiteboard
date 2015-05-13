@@ -115,7 +115,7 @@ public class DrawingView extends View {
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
-                String jsonString = String.valueOf(jsonObject);
+                String jsonString = jsonObject.toString();
                 history.add(jsonString);
                 activity.callback(jsonString);
                 break;
