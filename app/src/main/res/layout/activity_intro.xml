@@ -52,7 +52,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/whiteboardName"
         android:hint="Please enter whiteboard name"
-        android:text="testw"
+        android:text="test_board"
         android:singleLine="true" />
 
     <TextView

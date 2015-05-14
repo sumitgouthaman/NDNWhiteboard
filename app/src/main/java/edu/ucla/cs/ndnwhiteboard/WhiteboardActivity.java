@@ -127,7 +127,6 @@ public class WhiteboardActivity extends ActionBarActivity {
         });
 
         new PingTask().execute();
-        drawInitialCanvas();
     }
 
     @Override
@@ -302,7 +301,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                         if (dataHist.size() > comp) {
                             blob = new Blob(dataHist.get(comp).getBytes());
                         } else {
-                            blob = new Blob("NA".getBytes());
+                            return;
                         }
                         data.setContent(blob);
                         try {
@@ -310,18 +309,6 @@ public class WhiteboardActivity extends ActionBarActivity {
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-
-
-//                        String mess = "Sent from here!";
-//                        Data data = new Data();
-//                        data.setName(new Name("/ndn/broadcast/whiteboard/1"));
-//                        Blob blob = new Blob(mess.getBytes());
-//                        data.setContent(blob);
-//                        try {
-//                            face.putData(data);
-//                        } catch (IOException e) {
-//                            e.printStackTrace();
-//                        }
                     }
                 }, new OnRegisterFailed() {
                     @Override
@@ -351,6 +338,72 @@ public class WhiteboardActivity extends ActionBarActivity {
             return null;
         }
 
+    }
+
+    private class FetchChangesTask extends AsyncTask<Void, Void, String> {
+        String namePrefixStr;
+        int nameSeq;
+        boolean m_shouldStop = false;
+        public FetchChangesTask(String namePrefixStr, int nameSeq) {
+            this.namePrefixStr = namePrefixStr;
+            this.nameSeq = nameSeq;
+        }
+        String m_retVal;
+        @Override
+        protected String doInBackground(Void... params) {
+            String nameStr = namePrefixStr + "/" + nameSeq;
+
+            try {
+                m_face.expressInterest(new Name(nameStr),
+                        new OnData() {
+                            @Override
+                            public void
+                            onData(Interest interest, Data data) {
+                                m_retVal = data.getContent().toString();
+
+                                m_shouldStop = true;
+                                Log.i("NDN", "Got content: " + m_retVal);
+                            }
+                        },
+                        new OnTimeout() {
+                            @Override
+                            public void onTimeout(Interest interest) {
+                                m_retVal = null;
+                                m_shouldStop = true;
+                                Log.i("NDN", "Got Timeout");
+                            }
+                        });
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            while (!m_shouldStop && !activity_stop) {
+                try {
+                    m_face.processEvents();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (EncodingException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            return m_retVal;
+        }
+
+        @Override
+        protected void onPostExecute(String data) {
+            super.onPostExecute(data);
+            if(data == null) {
+                new FetchChangesTask(namePrefixStr, nameSeq).execute();
+            } else {
+                drawingView_canvas.callback(data);
+                // Try again with next seq number
+                new FetchChangesTask(namePrefixStr, nameSeq + 1).execute();
+            }
+        }
     }
 
     private class PingTask extends AsyncTask<Void, Void, String> {
@@ -413,51 +466,8 @@ public class WhiteboardActivity extends ActionBarActivity {
                     new RegisterPrefixTask().execute();
                 } else {
                     Log.i("NDN", "Not registering, not admin");
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                m_shouldStop = false;
-                                final String nameStr = prefix + "/" + whiteboard + "/" + "admin" + "/0";
-                                m_face.expressInterest(new Name(nameStr),
-                                        new OnData() {
-                                            @Override
-                                            public void
-                                            onData(Interest interest, Data data) {
-                                                m_retVal = data.getContent().toString();
+                    new FetchChangesTask(prefix+"/"+whiteboard+"/admin", 0).execute();
 
-                                                m_shouldStop = true;
-                                                Log.i("NDN", "Got content: " + m_retVal);
-                                            }
-                                        },
-                                        new OnTimeout() {
-                                            @Override
-                                            public void onTimeout(Interest interest) {
-                                                m_retVal = "ERROR: Timeout";
-                                                m_shouldStop = true;
-                                                Log.i("NDN", "Got Timeout");
-                                            }
-                                        });
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-
-                            while (!m_shouldStop) {
-                                try {
-                                    m_face.processEvents();
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                } catch (EncodingException e) {
-                                    e.printStackTrace();
-                                }
-                                try {
-                                    Thread.sleep(500);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        }
-                    }).start();
                 }
             }
         }
