@@ -44,6 +44,8 @@ public class DrawingView extends View {
     private ArrayList<PointF> points = new ArrayList<>();
     private WhiteboardActivity activity;
 
+    private boolean initialDrawn = false;
+
     public void setActivity(WhiteboardActivity activity) {
         this.activity = activity;
     }
@@ -66,9 +68,15 @@ public class DrawingView extends View {
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         viewWidth = w;
-        this.getLayoutParams().height = (int) (6/5f * w);
+        Log.i("DrawingView", String.valueOf(w));
+        Log.i("DrawingView", String.valueOf(h));
+        this.getLayoutParams().height = (int) (6/5f * viewWidth);
         canvasBitmap = Bitmap.createBitmap(w, (int) (6/5f * w), Bitmap.Config.ARGB_8888);
         drawCanvas = new Canvas(canvasBitmap);
+        if (!initialDrawn && h == (int) (6/5f * w)) {
+            activity.drawInitialCanvas();
+            initialDrawn = true;
+        }
     }
 
     @Override
