@@ -69,7 +69,6 @@ public class DrawingView extends View {
         this.getLayoutParams().height = (int) (6/5f * w);
         canvasBitmap = Bitmap.createBitmap(w, (int) (6/5f * w), Bitmap.Config.ARGB_8888);
         drawCanvas = new Canvas(canvasBitmap);
-        activity.drawInitialCanvas();
     }
 
     @Override

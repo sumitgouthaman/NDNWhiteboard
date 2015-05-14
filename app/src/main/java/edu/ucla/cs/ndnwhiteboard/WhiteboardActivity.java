@@ -44,6 +44,8 @@ public class WhiteboardActivity extends ActionBarActivity {
     private String whiteboard;
     private String prefix;
 
+    private Face m_face;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -109,12 +111,8 @@ public class WhiteboardActivity extends ActionBarActivity {
             }
         });
 
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        new FetchTask().execute();
+        new PingTask().execute();
+        drawInitialCanvas();
     }
 
     @Override
@@ -247,15 +245,17 @@ public class WhiteboardActivity extends ActionBarActivity {
         }
     }
 
-    private class FetchTask extends AsyncTask<Void, Void, String> {
+    private class PingTask extends AsyncTask<Void, Void, String> {
+
         private String m_retVal = "not changed";
-        private Face m_face;
+
         private boolean m_shouldStop = false;
 
         @Override
         protected String doInBackground(Void... voids) {
             Log.i("Main", "doInBackground called");
             try {
+
                 m_face = new Face("localhost");
                 Log.i("Main", "face created");
                 m_face.expressInterest(new Name("/ndn/edu/ucla/remap/ping"),
@@ -279,10 +279,9 @@ public class WhiteboardActivity extends ActionBarActivity {
                 while (!m_shouldStop) {
                     m_face.processEvents();
                     //Log.i("Main", "loop");
-                    Thread.sleep(500);
+                    Thread.sleep(100);
                 }
-                m_face.shutdown();
-                m_face = null;
+
                 return m_retVal;
             } catch (Exception e) {
                 m_retVal = "ERROR: " + e.getMessage();
