@@ -36,6 +36,7 @@
         android:id="@+id/userName"
         android:layout_gravity="center_horizontal"
         android:hint="Please enter your name"
+        android:text="admin"
         android:singleLine="true" />
 
     <TextView
@@ -51,6 +52,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/whiteboardName"
         android:hint="Please enter whiteboard name"
+        android:text="testw"
         android:singleLine="true" />
 
     <TextView
@@ -65,7 +67,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/prefixName"
-        android:text="/ndn/broadcast/whiteboard/"
+        android:text="/ndn/broadcast/whiteboard"
         android:singleLine="true" />
 
     <Button

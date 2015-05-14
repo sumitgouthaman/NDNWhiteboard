@@ -18,17 +18,29 @@ import android.widget.Toast;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.text.Format;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 import net.named_data.jndn.Data;
 import net.named_data.jndn.Face;
 import net.named_data.jndn.Interest;
+import net.named_data.jndn.InterestFilter;
 import net.named_data.jndn.Name;
 import net.named_data.jndn.OnData;
+import net.named_data.jndn.OnInterestCallback;
+import net.named_data.jndn.OnRegisterFailed;
 import net.named_data.jndn.OnTimeout;
+import net.named_data.jndn.encoding.EncodingException;
+import net.named_data.jndn.security.*;
+import net.named_data.jndn.security.SecurityException;
+import net.named_data.jndn.security.identity.IdentityManager;
+import net.named_data.jndn.security.identity.MemoryIdentityStorage;
+import net.named_data.jndn.security.identity.MemoryPrivateKeyStorage;
+import net.named_data.jndn.util.Blob;
 
 
 public class WhiteboardActivity extends ActionBarActivity {
@@ -40,11 +52,14 @@ public class WhiteboardActivity extends ActionBarActivity {
     private ImageButton button_save;
     private ImageButton button_undo;
     private ImageButton button_clear;
-    private String username;
+    public String username;
     private String whiteboard;
     private String prefix;
 
+    boolean activity_stop = false;
+    ArrayList<String> dataHist = new ArrayList<String>();
     private Face m_face;
+    int seqNum = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +68,7 @@ public class WhiteboardActivity extends ActionBarActivity {
 
         Intent introIntent = getIntent();
         this.username = introIntent.getExtras().getString("name");
-        this.whiteboard = introIntent.getExtras().getString("whiteboard").replaceAll("\\s","");
+        this.whiteboard = introIntent.getExtras().getString("whiteboard").replaceAll("\\s", "");
         this.prefix = introIntent.getExtras().getString("prefix");
         Log.i("WhiteboardActivity", "username: " + this.username);
         Log.i("WhiteboardActivity", "whiteboard: " + this.whiteboard);
@@ -112,6 +127,14 @@ public class WhiteboardActivity extends ActionBarActivity {
         });
 
         new PingTask().execute();
+        drawInitialCanvas();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        activity_stop = true;
+        m_face.shutdown();
     }
 
     @Override
@@ -136,9 +159,11 @@ public class WhiteboardActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void callback(String string) {
+    public void callback(String jsonData) {
         //TODO: implement callback
-        Log.i("WhiteboardActivity", "callback" + string);
+        dataHist.add(jsonData);
+
+        Log.i("WhiteboardActivity", "callback: " + jsonData);
     }
 
     public void setButtonColor(int color) {
@@ -147,58 +172,58 @@ public class WhiteboardActivity extends ActionBarActivity {
 
     private void confirmErase() {
         new AlertDialog.Builder(this)
-            .setIcon(android.R.drawable.ic_dialog_alert)
-            .setTitle("Confirm erase")
-            .setMessage("Are you sure you want to erase the canvas?")
-            .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    drawingView_canvas.clear();
-                }
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setTitle("Confirm erase")
+                .setMessage("Are you sure you want to erase the canvas?")
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        drawingView_canvas.clear();
+                    }
 
-            })
-            .setNegativeButton("No", null)
-            .show();
+                })
+                .setNegativeButton("No", null)
+                .show();
     }
 
     private void confirmSave() {
         new AlertDialog.Builder(this)
-            .setIcon(android.R.drawable.ic_dialog_alert)
-            .setTitle("Confirm canvas save")
-            .setMessage("Do you want to save the canvas?")
-            .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    drawingView_canvas.setDrawingCacheEnabled(true);
-                    Date date = new Date();
-                    Format formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss");
-                    String fileName = formatter.format(date) + ".png";
-                    if (android.os.Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED)) {
-                        File sdCard = Environment.getExternalStorageDirectory();
-                        File dir = new File(sdCard.getAbsolutePath() + "/NDN_Whiteboard");
-                        dir.mkdirs();
-                        File file = new File(dir, fileName);
-                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        drawingView_canvas.getDrawingCache().compress(Bitmap.CompressFormat.PNG, 100, baos);
-                        FileOutputStream f = null;
-                        try {
-                            f = new FileOutputStream(file);
-                            if (f != null) {
-                                f.write(baos.toByteArray());
-                                f.flush();
-                                f.close();
-                                Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setTitle("Confirm canvas save")
+                .setMessage("Do you want to save the canvas?")
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        drawingView_canvas.setDrawingCacheEnabled(true);
+                        Date date = new Date();
+                        Format formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss");
+                        String fileName = formatter.format(date) + ".png";
+                        if (android.os.Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED)) {
+                            File sdCard = Environment.getExternalStorageDirectory();
+                            File dir = new File(sdCard.getAbsolutePath() + "/NDN_Whiteboard");
+                            dir.mkdirs();
+                            File file = new File(dir, fileName);
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            drawingView_canvas.getDrawingCache().compress(Bitmap.CompressFormat.PNG, 100, baos);
+                            FileOutputStream f = null;
+                            try {
+                                f = new FileOutputStream(file);
+                                if (f != null) {
+                                    f.write(baos.toByteArray());
+                                    f.flush();
+                                    f.close();
+                                    Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                Toast.makeText(getApplicationContext(), "Save Failed!", Toast.LENGTH_SHORT).show();
                             }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            Toast.makeText(getApplicationContext(), "Save Failed!", Toast.LENGTH_SHORT).show();
                         }
+                        drawingView_canvas.destroyDrawingCache();
                     }
-                    drawingView_canvas.destroyDrawingCache();
-                }
-            })
-            .setNegativeButton("No", null)
-            .show();
+                })
+                .setNegativeButton("No", null)
+                .show();
     }
 
     public void drawInitialCanvas() {
@@ -244,6 +269,90 @@ public class WhiteboardActivity extends ActionBarActivity {
         }
     }
 
+    private class RegisterPrefixTask extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            KeyChain keyChain = null;
+            try {
+                keyChain = buildTestKeyChain();
+            } catch (net.named_data.jndn.security.SecurityException e) {
+                e.printStackTrace();
+            }
+            keyChain.setFace(m_face);
+            try {
+                m_face.setCommandSigningInfo(keyChain, keyChain.getDefaultCertificateName());
+            } catch (SecurityException e) {
+                e.printStackTrace();
+            }
+            final String nameStr = prefix + "/" + whiteboard + "/" + username;
+            Name base_name = new Name(nameStr);
+            try {
+                m_face.registerPrefix(base_name, new OnInterestCallback() {
+                    @Override
+                    public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
+                        Name interestName = interest.getName();
+                        String lastComp = interestName.get(interestName.size() - 1).toEscapedString();
+                        Log.i("NDN", "Interest received: " + lastComp);
+                        int comp = Integer.parseInt(lastComp);
+
+                        Data data = new Data();
+                        data.setName(new Name(interestName));
+                        Blob blob = null;
+                        if (dataHist.size() > comp) {
+                            blob = new Blob(dataHist.get(comp).getBytes());
+                        } else {
+                            blob = new Blob("NA".getBytes());
+                        }
+                        data.setContent(blob);
+                        try {
+                            face.putData(data);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+
+//                        String mess = "Sent from here!";
+//                        Data data = new Data();
+//                        data.setName(new Name("/ndn/broadcast/whiteboard/1"));
+//                        Blob blob = new Blob(mess.getBytes());
+//                        data.setContent(blob);
+//                        try {
+//                            face.putData(data);
+//                        } catch (IOException e) {
+//                            e.printStackTrace();
+//                        }
+                    }
+                }, new OnRegisterFailed() {
+                    @Override
+                    public void onRegisterFailed(Name prefix) {
+                        Log.i("NDN", "Register Failed");
+                    }
+                });
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (SecurityException e) {
+                e.printStackTrace();
+            }
+            while (!activity_stop) {
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException ie) {
+                    ie.printStackTrace();
+                }
+                try {
+                    m_face.processEvents();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (EncodingException e) {
+                    e.printStackTrace();
+                }
+            }
+            return null;
+        }
+
+    }
+
     private class PingTask extends AsyncTask<Void, Void, String> {
 
         private String m_retVal = "not changed";
@@ -275,10 +384,10 @@ public class WhiteboardActivity extends ActionBarActivity {
                             }
                         });
 
-                while (!m_shouldStop) {
+                while (!m_shouldStop && !activity_stop) {
                     m_face.processEvents();
                     //Log.i("Main", "loop");
-                    Thread.sleep(100);
+                    Thread.sleep(500);
                 }
 
                 return m_retVal;
@@ -289,19 +398,89 @@ public class WhiteboardActivity extends ActionBarActivity {
         }
 
         @Override
-        protected void onPostExecute(String result)
-        {
+        protected void onPostExecute(final String result) {
             if (m_retVal.contains("ERROR:")) {
                 new AlertDialog.Builder(WhiteboardActivity.this)
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .setTitle("Error received")
-                    .setMessage(m_retVal)
-                    .setPositiveButton("OK", null)
-                    .show();
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setTitle("Error received")
+                        .setMessage(m_retVal)
+                        .setPositiveButton("OK", null)
+                        .show();
             } else {
                 Log.i("NDN", m_retVal);
+                if (username.equals("admin")) {
+                    Log.i("NDN", "Staring register task");
+                    new RegisterPrefixTask().execute();
+                } else {
+                    Log.i("NDN", "Not registering, not admin");
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                m_shouldStop = false;
+                                final String nameStr = prefix + "/" + whiteboard + "/" + "admin" + "/0";
+                                m_face.expressInterest(new Name(nameStr),
+                                        new OnData() {
+                                            @Override
+                                            public void
+                                            onData(Interest interest, Data data) {
+                                                m_retVal = data.getContent().toString();
+
+                                                m_shouldStop = true;
+                                                Log.i("NDN", "Got content: " + m_retVal);
+                                            }
+                                        },
+                                        new OnTimeout() {
+                                            @Override
+                                            public void onTimeout(Interest interest) {
+                                                m_retVal = "ERROR: Timeout";
+                                                m_shouldStop = true;
+                                                Log.i("NDN", "Got Timeout");
+                                            }
+                                        });
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+
+                            while (!m_shouldStop) {
+                                try {
+                                    m_face.processEvents();
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                } catch (EncodingException e) {
+                                    e.printStackTrace();
+                                }
+                                try {
+                                    Thread.sleep(500);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    }).start();
+                }
             }
         }
 
+    }
+
+    /**
+     * Setup an in-memory KeyChain with a default identity.
+     *
+     * @return
+     * @throws net.named_data.jndn.security.SecurityException
+     */
+    public static KeyChain buildTestKeyChain() throws net.named_data.jndn.security.SecurityException {
+        MemoryIdentityStorage identityStorage = new MemoryIdentityStorage();
+        MemoryPrivateKeyStorage privateKeyStorage = new MemoryPrivateKeyStorage();
+        IdentityManager identityManager = new IdentityManager(identityStorage, privateKeyStorage);
+        KeyChain keyChain = new KeyChain(identityManager);
+        try {
+            keyChain.getDefaultCertificateName();
+        } catch (net.named_data.jndn.security.SecurityException e) {
+            keyChain.createIdentity(new Name("/test/identity"));
+            keyChain.getIdentityManager().setDefaultIdentity(new Name("/test/identity"));
+        }
+        return keyChain;
     }
 }

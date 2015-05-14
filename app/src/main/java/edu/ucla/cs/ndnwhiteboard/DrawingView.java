@@ -94,6 +94,7 @@ public class DrawingView extends View {
                 drawPath.moveTo(touchX, touchY);
                 try {
                     jsonObject = new JSONObject();
+                    jsonObject.put("user", activity.username);
                     jsonObject.put("type", (isEraser) ? "eraser" : "pen");
                     if (!isEraser) {
                         jsonObject.put("color", currentColor);
@@ -177,6 +178,15 @@ public class DrawingView extends View {
         history.clear();
         drawCanvas.drawColor(Color.WHITE);
         invalidate();
+        try {
+            jsonObject = new JSONObject();
+            jsonObject.put("user", activity.username);
+            jsonObject.put("type", "clear");
+            String jsonString = jsonObject.toString();
+            activity.callback(jsonString);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
     public void callback(String string) {
