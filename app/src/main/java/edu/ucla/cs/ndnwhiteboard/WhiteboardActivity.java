@@ -127,7 +127,6 @@ public class WhiteboardActivity extends ActionBarActivity {
         });
 
         new PingTask().execute();
-        drawInitialCanvas();
     }
 
     @Override
