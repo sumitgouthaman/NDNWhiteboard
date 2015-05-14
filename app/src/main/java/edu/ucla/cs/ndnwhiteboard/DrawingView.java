@@ -74,7 +74,7 @@ public class DrawingView extends View {
         canvasBitmap = Bitmap.createBitmap(w, (int) (6/5f * w), Bitmap.Config.ARGB_8888);
         drawCanvas = new Canvas(canvasBitmap);
         if (!initialDrawn && h == (int) (6/5f * w)) {
-            activity.drawInitialCanvas();
+            //activity.drawInitialCanvas();
             initialDrawn = true;
         }
     }
@@ -192,7 +192,7 @@ public class DrawingView extends View {
     public void callback(String string) {
         parseJSON(string, true);
     }
-    private void parseJSON(String string, boolean addToHistory) {
+    public void parseJSON(String string, boolean addToHistory) {
         try {
             JSONObject jsonObject = new JSONObject(string);
             try {
@@ -219,6 +219,7 @@ public class DrawingView extends View {
                     drawPath.lineTo(x, y);
                 }
                 drawCanvas.drawPath(drawPath, drawPaint);
+                invalidate();
                 drawPath.reset();
                 if (addToHistory) {
                     history.add(string);
