@@ -272,12 +272,13 @@ public class WhiteboardActivity extends ActionBarActivity {
                             @Override
                             public void onTimeout(Interest interest) {
                                 m_retVal = "ERROR: Timeout trying";
+                                m_shouldStop = true;
                             }
                         });
 
                 while (!m_shouldStop) {
                     m_face.processEvents();
-                    Log.i("Main", "loop");
+                    //Log.i("Main", "loop");
                     Thread.sleep(500);
                 }
                 m_face.shutdown();
