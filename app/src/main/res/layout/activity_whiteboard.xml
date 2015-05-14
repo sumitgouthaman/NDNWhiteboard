@@ -27,16 +27,18 @@
             <ImageButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingLeft="0dp"
+                android:paddingRight="0dp"
                 android:id="@+id/button_pencil"
-                android:src="@drawable/ic_action_marker"
-                android:layout_weight="1" />
+                android:src="@drawable/ic_action_marker" />
 
             <ImageButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingLeft="0dp"
+                android:paddingRight="0dp"
                 android:id="@+id/button_eraser"
-                android:src="@drawable/ic_action_erase"
-                android:layout_weight="1"  />
+                android:src="@drawable/ic_action_erase" />
 
             <LinearLayout
                 android:orientation="horizontal"
@@ -58,23 +60,26 @@
             <ImageButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingLeft="0dp"
+                android:paddingRight="0dp"
                 android:id="@+id/button_save"
-                android:src="@drawable/ic_action_save"
-                android:layout_weight="1"  />
+                android:src="@drawable/ic_action_save" />
 
             <ImageButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingLeft="0dp"
+                android:paddingRight="0dp"
                 android:id="@+id/button_undo"
-                android:src="@drawable/ic_action_undo"
-                android:layout_weight="1"  />
+                android:src="@drawable/ic_action_undo" />
 
             <ImageButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingLeft="0dp"
+                android:paddingRight="0dp"
                 android:id="@+id/button_clear"
-                android:src="@drawable/ic_action_discard"
-                android:layout_weight="1"  />
+                android:src="@drawable/ic_action_discard" />
 
         </LinearLayout>
 
