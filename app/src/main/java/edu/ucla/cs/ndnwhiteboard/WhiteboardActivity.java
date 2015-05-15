@@ -161,7 +161,18 @@ public class WhiteboardActivity extends ActionBarActivity {
     public void callback(String jsonData) {
         //TODO: implement callback
         dataHist.add(jsonData);
-
+        int seq = dataHist.size() - 1;
+        String dataName = prefix + "/" + whiteboard + "/" + username + "/" + seq;
+        Data data = new Data();
+        data.setName(new Name(dataName));
+        Blob blob = null;
+        blob = new Blob(dataHist.get(seq).getBytes());
+        data.setContent(blob);
+        try {
+            if (m_face != null) {m_face.putData(data);}
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         Log.i("WhiteboardActivity", "callback: " + jsonData);
     }
 
@@ -399,6 +410,7 @@ public class WhiteboardActivity extends ActionBarActivity {
             if(data == null) {
                 new FetchChangesTask(namePrefixStr, nameSeq).execute();
             } else {
+
                 drawingView_canvas.callback(data);
                 // Try again with next seq number
                 new FetchChangesTask(namePrefixStr, nameSeq + 1).execute();
