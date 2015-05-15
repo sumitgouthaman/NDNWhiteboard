@@ -166,12 +166,25 @@ public class DrawingView extends View {
             Toast.makeText(activity, "No more history", Toast.LENGTH_SHORT).show();
             return;
         }
-        history.remove(history.size() - 1);
+        for (int i = history.size() - 1; i >= 0; i--) {
+            if (history.get(i).contains("\"user\":\"" + activity.username + "\"")) {
+                history.remove(i);
+                try {
+                    jsonObject = new JSONObject();
+                    jsonObject.put("user", activity.username);
+                    jsonObject.put("type", "undo");
+                    activity.callback(jsonObject.toString());
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                break;
+            }
+        }
         drawCanvas.drawColor(Color.WHITE);
+        invalidate();
         for (String string : history) {
             parseJSON(string, false);
         }
-        invalidate();
     }
 
     public void clear() {
@@ -182,8 +195,7 @@ public class DrawingView extends View {
             jsonObject = new JSONObject();
             jsonObject.put("user", activity.username);
             jsonObject.put("type", "clear");
-            String jsonString = jsonObject.toString();
-            activity.callback(jsonString);
+            activity.callback(jsonObject.toString());
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -192,6 +204,7 @@ public class DrawingView extends View {
     public void callback(String string) {
         parseJSON(string, true);
     }
+
     public void parseJSON(String string, boolean addToHistory) {
         try {
             JSONObject jsonObject = new JSONObject(string);
@@ -204,30 +217,51 @@ public class DrawingView extends View {
                     setColor(color);
                 } else if (type.equals("eraser")) {
                     setEraser();
+                } else if (type.equals("undo")) {
+                    if (history.isEmpty()) {
+                        return;
+                    }
+                    for (int i = history.size() - 1; i >= 0; i--) {
+                        if (history.get(i).contains("\"user\":\"" + activity.username + "\"")) {
+                            history.remove(i);
+                            break;
+                        }
+                    }
+                    drawCanvas.drawColor(Color.WHITE);
+                    invalidate();
+                    for (String str : history) {
+                        parseJSON(str, false);
+                    }
+                } else if (type.equals("clear")) {
+                    history.clear();
+                    drawCanvas.drawColor(Color.WHITE);
+                    invalidate();
                 } else {
-                    throw new JSONException("");
+                    throw new JSONException("Unrecognized string: " + string);
                 }
-                JSONArray coordinates = jsonObject.getJSONArray("coordinates");
-                JSONArray startPoint = coordinates.getJSONArray(0);
-                float touchX = (float) startPoint.getDouble(0) * viewWidth;
-                float touchY = (float) startPoint.getDouble(1) * viewWidth;
-                drawPath.moveTo(touchX, touchY);
-                for (int i = 1; i < coordinates.length(); i++) {
-                    JSONArray point = coordinates.getJSONArray(i);
-                    float x = (float) point.getDouble(0) * viewWidth;
-                    float y = (float) point.getDouble(1) * viewWidth;
-                    drawPath.lineTo(x, y);
-                }
-                drawCanvas.drawPath(drawPath, drawPaint);
-                invalidate();
-                drawPath.reset();
-                if (addToHistory) {
-                    history.add(string);
-                }
-                if (isEraserBefore) {
-                    setEraser();
-                } else {
-                    setColor(colorBefore);
+                if (type.equals("pen") || type.equals("eraser")) {
+                    JSONArray coordinates = jsonObject.getJSONArray("coordinates");
+                    JSONArray startPoint = coordinates.getJSONArray(0);
+                    float touchX = (float) startPoint.getDouble(0) * viewWidth;
+                    float touchY = (float) startPoint.getDouble(1) * viewWidth;
+                    drawPath.moveTo(touchX, touchY);
+                    for (int i = 1; i < coordinates.length(); i++) {
+                        JSONArray point = coordinates.getJSONArray(i);
+                        float x = (float) point.getDouble(0) * viewWidth;
+                        float y = (float) point.getDouble(1) * viewWidth;
+                        drawPath.lineTo(x, y);
+                    }
+                    drawCanvas.drawPath(drawPath, drawPaint);
+                    invalidate();
+                    drawPath.reset();
+                    if (addToHistory) {
+                        history.add(string);
+                    }
+                    if (isEraserBefore) {
+                        setEraser();
+                    } else {
+                        setColor(colorBefore);
+                    }
                 }
             } catch (JSONException e) {
                 Log.i("DrawingView", "JSON string error: " + string);
