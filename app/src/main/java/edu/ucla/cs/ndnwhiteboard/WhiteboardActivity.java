@@ -227,12 +227,10 @@ public class WhiteboardActivity extends ActionBarActivity {
                             FileOutputStream f = null;
                             try {
                                 f = new FileOutputStream(file);
-                                if (f != null) {
-                                    f.write(baos.toByteArray());
-                                    f.flush();
-                                    f.close();
-                                    Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
-                                }
+                                f.write(baos.toByteArray());
+                                f.flush();
+                                f.close();
+                                Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
                             } catch (Exception e) {
                                 e.printStackTrace();
                                 Toast.makeText(getApplicationContext(), "Save Failed!", Toast.LENGTH_SHORT).show();
@@ -336,9 +334,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                         Log.i("NDN", "Register Failed");
                     }
                 });
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (SecurityException e) {
+            } catch (IOException | SecurityException e) {
                 e.printStackTrace();
             }
             while (!activity_stop) {
@@ -349,9 +345,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                 }
                 try {
                     m_face.processEvents();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (EncodingException e) {
+                } catch (IOException | EncodingException e) {
                     e.printStackTrace();
                 }
             }
@@ -378,33 +372,31 @@ public class WhiteboardActivity extends ActionBarActivity {
 
             try {
                 m_face.expressInterest(new Name(nameStr),
-                        new OnData() {
-                            @Override
-                            public void
-                            onData(Interest interest, Data data) {
-                                m_retVal = data.getContent().toString();
+                    new OnData() {
+                        @Override
+                        public void
+                        onData(Interest interest, Data data) {
+                            m_retVal = data.getContent().toString();
 
-                                m_shouldStop = true;
-                                Log.i("NDN", "Got content: " + m_retVal);
-                            }
-                        },
-                        new OnTimeout() {
-                            @Override
-                            public void onTimeout(Interest interest) {
-                                m_retVal = null;
-                                m_shouldStop = true;
-                                Log.i("NDN", "Got Timeout");
-                            }
-                        });
+                            m_shouldStop = true;
+                            Log.i("NDN", "Got content: " + m_retVal);
+                        }
+                    },
+                    new OnTimeout() {
+                        @Override
+                        public void onTimeout(Interest interest) {
+                            m_retVal = null;
+                            m_shouldStop = true;
+                            Log.i("NDN", "Got Timeout");
+                        }
+                    });
             } catch (IOException e) {
                 e.printStackTrace();
             }
             while (!m_shouldStop && !activity_stop) {
                 try {
                     m_face.processEvents();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (EncodingException e) {
+                } catch (IOException | EncodingException e) {
                     e.printStackTrace();
                 }
                 try {
@@ -419,6 +411,9 @@ public class WhiteboardActivity extends ActionBarActivity {
         @Override
         protected void onPostExecute(String data) {
             super.onPostExecute(data);
+            if (activity_stop) {
+                return;
+            }
             if (data == null) {
                 new FetchChangesTask(namePrefixStr, nameSeq).execute();
             } else {
@@ -491,7 +486,6 @@ public class WhiteboardActivity extends ActionBarActivity {
                 } else {
                     Log.i("NDN", "Not registering, not admin");
                     new FetchChangesTask(prefix + "/" + whiteboard + "/admin", 0).execute();
-
                 }
             }
         }
