@@ -221,8 +221,9 @@ public class DrawingView extends View {
                     if (history.isEmpty()) {
                         return;
                     }
+                    String userStr = jsonObject.getString("user");
                     for (int i = history.size() - 1; i >= 0; i--) {
-                        if (history.get(i).contains("\"user\":\"" + activity.username + "\"")) {
+                        if (history.get(i).contains("\"user\":\"" + userStr + "\"")) {
                             history.remove(i);
                             break;
                         }
