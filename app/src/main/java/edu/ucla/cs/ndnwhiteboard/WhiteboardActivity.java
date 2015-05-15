@@ -339,7 +339,7 @@ public class WhiteboardActivity extends ActionBarActivity {
             }
             while (!activity_stop) {
                 try {
-                    Thread.sleep(200);
+                    Thread.sleep(100);
                 } catch (InterruptedException ie) {
                     ie.printStackTrace();
                 }
@@ -459,7 +459,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                 while (!m_shouldStop && !activity_stop) {
                     m_face.processEvents();
                     //Log.i("Main", "loop");
-                    Thread.sleep(500);
+                    Thread.sleep(100);
                 }
 
                 return m_retVal;
