@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "edu.ucla.cs.ndnwhiteboard"
-        minSdkVersion 19
+        minSdkVersion 15
         targetSdkVersion 21
         versionCode 1
         versionName "1.0"
