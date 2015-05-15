@@ -17,6 +17,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 /**
@@ -87,6 +88,7 @@ public class DrawingView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        DecimalFormat df = new DecimalFormat("#.###");
         float touchX = event.getX();
         float touchY = event.getY();
         switch (event.getAction()) {
@@ -107,6 +109,30 @@ public class DrawingView extends View {
             case MotionEvent.ACTION_MOVE:
                 drawPath.lineTo(touchX, touchY);
                 points.add(new PointF(touchX, touchY));
+                int maxCoordSize = (8000 - activity.username.length()) / 18;
+                if (points.size() == maxCoordSize) {
+                    Log.i("DrawingView", "maxCoordSize: " + maxCoordSize);
+                    drawCanvas.drawPath(drawPath, drawPaint);
+                    drawPath.reset();
+                    drawPath.moveTo(touchX, touchY);
+                    try {
+                        JSONArray coordinates = new JSONArray();
+                        for (PointF p : points) {
+                            JSONArray ja = new JSONArray();
+                            ja.put(df.format(p.x / viewWidth));
+                            ja.put(df.format(p.y / viewWidth));
+                            coordinates.put(ja);
+                        }
+                        jsonObject.put("coordinates", coordinates);
+                        points.clear();
+                        points.add(new PointF(touchX, touchY));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                    String jsonString = jsonObject.toString();
+                    history.add(jsonString);
+                    activity.callback(jsonString);
+                }
                 break;
             case MotionEvent.ACTION_UP:
                 drawCanvas.drawPath(drawPath, drawPaint);
@@ -115,8 +141,8 @@ public class DrawingView extends View {
                     JSONArray coordinates = new JSONArray();
                     for (PointF p : points) {
                         JSONArray ja = new JSONArray();
-                        ja.put(p.x / viewWidth);
-                        ja.put(p.y / viewWidth);
+                        ja.put(df.format(p.x / viewWidth));
+                        ja.put(df.format(p.y / viewWidth));
                         coordinates.put(ja);
                     }
                     jsonObject.put("coordinates", coordinates);
