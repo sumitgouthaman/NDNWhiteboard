@@ -24,6 +24,7 @@ import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import net.named_data.jndn.Data;
 import net.named_data.jndn.Face;
@@ -40,6 +41,7 @@ import net.named_data.jndn.security.SecurityException;
 import net.named_data.jndn.security.identity.IdentityManager;
 import net.named_data.jndn.security.identity.MemoryIdentityStorage;
 import net.named_data.jndn.security.identity.MemoryPrivateKeyStorage;
+import net.named_data.jndn.sync.ChronoSync2013;
 import net.named_data.jndn.util.Blob;
 
 
@@ -59,6 +61,7 @@ public class WhiteboardActivity extends ActionBarActivity {
     boolean activity_stop = false;
     ArrayList<String> dataHist = new ArrayList<String>();
     private Face m_face;
+    private ChronoSync2013 sync;
     int seqNum = 0;
 
     @Override
@@ -188,6 +191,7 @@ public class WhiteboardActivity extends ActionBarActivity {
             }
         }).start();
 
+
         Log.i("WhiteboardActivity", "callback: " + jsonData);
     }
 
@@ -274,7 +278,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                         Name interestName = interest.getName();
                         String lastComp = interestName.get(interestName.size() - 1).toEscapedString();
                         Log.i("NDN", "Interest received: " + lastComp);
-                        int comp = Integer.parseInt(lastComp);
+                        int comp = Integer.parseInt(lastComp)-1;
 
                         Data data = new Data();
                         data.setName(new Name(interestName));
@@ -300,39 +304,29 @@ public class WhiteboardActivity extends ActionBarActivity {
             } catch (IOException | SecurityException e) {
                 e.printStackTrace();
             }
-            while (!activity_stop) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException ie) {
-                    ie.printStackTrace();
-                }
-                try {
-                    m_face.processEvents();
-                } catch (IOException | EncodingException e) {
-                    e.printStackTrace();
-                }
-            }
-            Log.i("WhiteboardActivity", "RegisterPrefixTask ended");
             return null;
         }
 
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            Log.i("WhiteboardActivity", "RegisterPrefixTask ended");
+            new RegisterChronoSyncTask().execute();
+        }
     }
 
     private class FetchChangesTask extends AsyncTask<Void, Void, String> {
         String namePrefixStr;
-        int nameSeq;
         boolean m_shouldStop = false;
 
-        public FetchChangesTask(String namePrefixStr, int nameSeq) {
+        public FetchChangesTask(String namePrefixStr) {
             this.namePrefixStr = namePrefixStr;
-            this.nameSeq = nameSeq;
         }
 
         String m_retVal;
 
         @Override
         protected String doInBackground(Void... params) {
-            String nameStr = namePrefixStr + "/" + nameSeq;
+            String nameStr = namePrefixStr;
 
             try {
                 m_face.expressInterest(new Name(nameStr),
@@ -359,33 +353,26 @@ public class WhiteboardActivity extends ActionBarActivity {
             }
             while (!m_shouldStop && !activity_stop) {
                 try {
-                    m_face.processEvents();
-                } catch (IOException | EncodingException e) {
-                    e.printStackTrace();
-                }
-                try {
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-            Log.i("WhiteboardActivity", "FetchChangesTask ended");
+
             return m_retVal;
         }
 
         @Override
         protected void onPostExecute(String data) {
-            super.onPostExecute(data);
+
+
             if (activity_stop) {
                 return;
             }
             if (data == null) {
-                new FetchChangesTask(namePrefixStr, nameSeq).execute();
+                new FetchChangesTask(namePrefixStr).execute();
             } else {
-
                 drawingView_canvas.callback(data);
-                // Try again with next seq number
-                new FetchChangesTask(namePrefixStr, nameSeq + 1).execute();
             }
         }
     }
@@ -424,9 +411,9 @@ public class WhiteboardActivity extends ActionBarActivity {
                 while (!m_shouldStop && !activity_stop) {
                     m_face.processEvents();
                     //Log.i("Main", "loop");
-                    Thread.sleep(100);
+                    Thread.sleep(200);
                 }
-                Log.i("WhiteboardActivity", "PingTask ended");
+
 
                 return m_retVal;
             } catch (Exception e) {
@@ -437,6 +424,7 @@ public class WhiteboardActivity extends ActionBarActivity {
 
         @Override
         protected void onPostExecute(final String result) {
+            Log.i("WhiteboardActivity", "PingTask ended");
             if (m_retVal.contains("ERROR:")) {
                 new AlertDialog.Builder(WhiteboardActivity.this)
                         .setIcon(android.R.drawable.ic_dialog_alert)
@@ -446,16 +434,110 @@ public class WhiteboardActivity extends ActionBarActivity {
                         .show();
             } else {
                 Log.i("NDN", m_retVal);
-                if (username.equals("admin")) {
-                    Log.i("NDN", "Staring register task");
-                    new RegisterPrefixTask().execute();
-                } else {
-                    Log.i("NDN", "Not registering, not admin");
-                    new FetchChangesTask(prefix + "/" + whiteboard + "/admin", 0).execute();
-                }
+                Log.i("NDN", "Registering prefix task");
+                new RegisterPrefixTask().execute();
             }
         }
 
+    }
+
+    private class RegisterChronoSyncTask  extends AsyncTask<Void, Void, Void> {
+        int attempt = 1;
+
+        public RegisterChronoSyncTask() {
+            this(1);
+        }
+        public RegisterChronoSyncTask(int attempt) {
+            this.attempt = attempt;
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            try {
+                Log.i("NDN", "About to register Chronosync, attempt: " + attempt);
+                KeyChain testKeyChain = buildTestKeyChain();
+                sync = new ChronoSync2013(
+                        new ChronoSync2013.OnReceivedSyncState() {
+                            @Override
+                            public void onReceivedSyncState(List syncStates, boolean isRecovery) {
+                                for (Object syncStateOb : syncStates){
+                                    ChronoSync2013.SyncState syncState = (ChronoSync2013.SyncState) syncStateOb;
+                                    String syncPrefix = syncState.getDataPrefix();
+                                    long syncSeq = syncState.getSequenceNo();
+                                    if (syncSeq == 0 || syncPrefix.contains(username)) {
+                                        Log.i("NDN", "SYNC: prefix: " + syncPrefix + " seq: " + syncSeq + " ignored.");
+                                        continue;
+                                    }
+                                    String syncNameStr = syncPrefix+"/"+syncSeq;
+                                    Log.i("NDN", "SYNC: " + syncNameStr);
+                                    new FetchChangesTask(syncNameStr).execute();
+                                }
+
+                            }
+                        },
+                        new ChronoSync2013.OnInitialized() {
+                            @Override
+                            public void onInitialized() {
+
+                            }
+                        },
+                        new Name(prefix+"/"+whiteboard+"/"+username), // App data prefix
+                        new Name("/ndn/broadcast/whiteboard/"+whiteboard), // Broadcast prefix
+                        //(int) Math.round(((double) System.currentTimeMillis()) / 1000.0),
+                        0l,
+                        m_face,
+                        testKeyChain,
+                        testKeyChain.getDefaultCertificateName(),
+                        5000.0,
+                        new OnRegisterFailed() {
+                            @Override
+                            public void onRegisterFailed(Name prefix) {
+                                Log.i("NDN", "Chronosync registeration failed, Attempt: " + attempt);
+                                new RegisterChronoSyncTask(attempt + 1).execute();
+                            }
+                        }
+                );
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (SecurityException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (!activity_stop) {
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException ie) {
+                            ie.printStackTrace();
+                        }
+                        try {
+                            if (sync != null) {
+                                while (sync.getSequenceNo() < dataHist.size()) {
+                                    sync.publishNextSequenceNo();
+                                    Log.i("NDN", "Plubished next seq number");
+                                }
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (SecurityException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            m_face.processEvents();
+                        } catch (IOException | EncodingException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }).start();
+        }
     }
 
     /**

@@ -17,6 +17,7 @@ public class IntroActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_intro);
         ((EditText) findViewById(R.id.whiteboardName)).setText(Utils.genWhiteboardName());
+        ((EditText) findViewById(R.id.userName)).setText(Utils.generateRandomName());
     }
 
 
