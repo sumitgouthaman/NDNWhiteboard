@@ -34,7 +34,7 @@ public class DrawingView extends View {
     //drawing and canvas paint
     private Paint drawPaint = new Paint(), canvasPaint = new Paint(Paint.DITHER_FLAG);
     //colors
-    private int[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW};
+    private int[] colors = {Color.BLACK, Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW};
     //canvas
     private Canvas drawCanvas;
     //canvas bitmap
@@ -46,6 +46,8 @@ public class DrawingView extends View {
     private WhiteboardActivity activity;
 
     private boolean initialDrawn = false;
+
+    private String TAG = DrawingView.class.getSimpleName();
 
     public void setActivity(WhiteboardActivity activity) {
         this.activity = activity;
@@ -69,13 +71,12 @@ public class DrawingView extends View {
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         viewWidth = w;
-        Log.i("DrawingView", String.valueOf(w));
-        Log.i("DrawingView", String.valueOf(h));
-        this.getLayoutParams().height = (int) (6/5f * viewWidth);
-        canvasBitmap = Bitmap.createBitmap(w, (int) (6/5f * w), Bitmap.Config.ARGB_8888);
+        //Log.d(TAG, "String.valueOf(w): " + String.valueOf(w));
+        //Log.d(TAG, "String.valueOf(h)" + String.valueOf(h));
+        this.getLayoutParams().height = (int) (6 / 5f * viewWidth);
+        canvasBitmap = Bitmap.createBitmap(w, (int) (6 / 5f * w), Bitmap.Config.ARGB_8888);
         drawCanvas = new Canvas(canvasBitmap);
-        if (!initialDrawn && h == (int) (6/5f * w)) {
-            //activity.drawInitialCanvas();
+        if (!initialDrawn && h == (int) (6 / 5f * w)) {
             initialDrawn = true;
         }
     }
@@ -111,7 +112,7 @@ public class DrawingView extends View {
                 points.add(new PointF(touchX, touchY));
                 int maxCoordSize = (8000 - activity.username.length()) / 18;
                 if (points.size() == maxCoordSize) {
-                    Log.i("DrawingView", "maxCoordSize: " + maxCoordSize);
+                    //Log.d(TAG, "maxCoordSize: " + maxCoordSize);
                     drawCanvas.drawPath(drawPath, drawPaint);
                     drawPath.reset();
                     drawPath.moveTo(touchX, touchY);
@@ -291,7 +292,7 @@ public class DrawingView extends View {
                     }
                 }
             } catch (JSONException e) {
-                Log.i("DrawingView", "JSON string error: " + string);
+                Log.d(TAG, "JSON string error: " + string);
             }
         } catch (JSONException e) {
             e.printStackTrace();
