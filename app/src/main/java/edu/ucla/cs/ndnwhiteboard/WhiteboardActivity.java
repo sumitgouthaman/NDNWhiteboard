@@ -441,7 +441,12 @@ public class WhiteboardActivity extends ActionBarActivity {
                         .setIcon(android.R.drawable.ic_dialog_alert)
                         .setTitle("Error received")
                         .setMessage(m_retVal)
-                        .setPositiveButton("OK", null)
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                finish();
+                            }
+                        })
                         .show();
             } else {
                 progressDialog.setMessage("Registering Prefix");
