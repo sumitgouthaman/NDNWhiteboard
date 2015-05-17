@@ -34,7 +34,10 @@ public class DrawingView extends View {
     //drawing and canvas paint
     private Paint drawPaint = new Paint(), canvasPaint = new Paint(Paint.DITHER_FLAG);
     //colors
-    private int[] colors = {Color.BLACK, Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW};
+    //private int[] colors = {Color.BLACK, Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW};
+    //Better Colors (All dark)
+    private int[] colors = {Color.BLACK, Color.RED, Color.BLUE, 0xFF458B00, 0xFFED9121};
+    int num_colors = colors.length;
     //canvas
     private Canvas drawCanvas;
     //canvas bitmap
@@ -182,7 +185,7 @@ public class DrawingView extends View {
     }
 
     public void incrementColor() {
-        if (!isEraser && ++currentColor > 4) {
+        if (!isEraser && ++currentColor > num_colors-1) {
             currentColor = 0;
         }
         setColor(currentColor);
