@@ -200,7 +200,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                         while (sync.getSequenceNo() < dataHist.size() && sync.getSequenceNo() != -1) {
                             Log.d(TAG, "Seq is now: " + sync.getSequenceNo());
                             sync.publishNextSequenceNo();
-                            Log.d(TAG, "Plubished next seq number. Seq is now: " + sync.getSequenceNo());
+                            Log.d(TAG, "Published next seq number. Seq is now: " + sync.getSequenceNo());
                         }
                     }
                 } catch (IOException | SecurityException e) {
@@ -316,7 +316,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                 }, new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name prefix) {
-                        Log.d(TAG, "Register Prefix Task: Registeration Failed");
+                        Log.d(TAG, "Register Prefix Task: Registration Failed");
                     }
                 });
             } catch (IOException | SecurityException e) {
@@ -328,7 +328,7 @@ public class WhiteboardActivity extends ActionBarActivity {
         @Override
         protected void onPostExecute(Void aVoid) {
             progressDialog.setMessage("Setting up ChronoSync");
-            Log.d(TAG, "Register Prefix Task ended (onPostEvecute)");
+            Log.d(TAG, "Register Prefix Task ended (onPostExecute)");
             Log.d(TAG, "About to trigger Register ChronoSync");
             new RegisterChronoSyncTask().execute();
         }
@@ -450,7 +450,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                         .show();
             } else {
                 progressDialog.setMessage("Registering Prefix");
-                Log.d(TAG, "Ping Task Suceeded: " + m_retVal);
+                Log.d(TAG, "Ping Task Succeeded: " + m_retVal);
                 Log.d(TAG, "ABout to trigger Registering prefix task");
                 new RegisterPrefixTask().execute();
             }
@@ -534,7 +534,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                         new OnRegisterFailed() {
                             @Override
                             public void onRegisterFailed(Name prefix) {
-                                Log.d(TAG, "Chronosync registeration failed, Attempt: " + attempt);
+                                Log.d(TAG, "ChronoSync registration failed, Attempt: " + attempt);
                                 Log.d(TAG, "Starting next attempt");
                                 new RegisterChronoSyncTask(attempt + 1).execute();
                             }
