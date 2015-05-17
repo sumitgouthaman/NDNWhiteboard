@@ -182,13 +182,13 @@ public class WhiteboardActivity extends ActionBarActivity {
 
     public void callback(String jsonData) {
         dataHist.add(jsonData);
-        int seq = dataHist.size() - 1;
-        String dataName = prefix + "/" + whiteboard + "/" + username + "/" + seq;
-        final Data data = new Data();
-        data.setName(new Name(dataName));
-        Blob blob = new Blob(dataHist.get(seq).getBytes());
-        Log.d(TAG, "About to send data, Size: " + dataHist.get(seq).length());
-        data.setContent(blob);
+//        int seq = dataHist.size() - 1;
+//        String dataName = prefix + "/" + whiteboard + "/" + username + "/" + seq;
+//        final Data data = new Data();
+//        data.setName(new Name(dataName));
+//        Blob blob = new Blob(dataHist.get(seq).getBytes());
+//        Log.d(TAG, "About to send data, Size: " + dataHist.get(seq).length());
+//        data.setContent(blob);
 
         new Thread(new Runnable() {
             @Override

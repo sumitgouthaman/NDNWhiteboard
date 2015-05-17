@@ -8,7 +8,9 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
@@ -62,9 +64,12 @@ public class DrawingView extends View {
     }
 
     private void setupDrawing() {
+        int dp = 4;
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        float pixelWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, dm);
         drawPaint.setColor(Color.BLACK);
         drawPaint.setAntiAlias(true);
-        drawPaint.setStrokeWidth(4);
+        drawPaint.setStrokeWidth(pixelWidth);
         drawPaint.setStyle(Paint.Style.STROKE);
         drawPaint.setStrokeJoin(Paint.Join.ROUND);
         drawPaint.setStrokeCap(Paint.Cap.ROUND);
@@ -170,17 +175,23 @@ public class DrawingView extends View {
     }
 
     public void setEraser() {
+        int dp = 20;
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        float pixelWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, dm);
         activity.setButtonColor(Color.WHITE);
         drawPaint.setColor(Color.WHITE);
-        drawPaint.setStrokeWidth(40);
+        drawPaint.setStrokeWidth(pixelWidth);
         isEraser = true;
     }
 
     private void setColor(int c) {
+        int dp = 3;
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        float pixelWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, dm);
         currentColor = c;
         activity.setButtonColor(colors[currentColor]);
         drawPaint.setColor(colors[currentColor]);
-        drawPaint.setStrokeWidth(5);
+        drawPaint.setStrokeWidth(pixelWidth);
         isEraser = false;
     }
 
