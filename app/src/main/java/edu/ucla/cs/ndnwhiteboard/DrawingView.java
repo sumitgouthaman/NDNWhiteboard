@@ -64,7 +64,7 @@ public class DrawingView extends View {
     }
 
     private void setupDrawing() {
-        int dp = 4;
+        int dp = 3;
         DisplayMetrics dm = getResources().getDisplayMetrics();
         float pixelWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, dm);
         drawPaint.setColor(Color.BLACK);
