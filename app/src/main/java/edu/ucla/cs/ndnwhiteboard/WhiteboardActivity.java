@@ -142,9 +142,9 @@ public class WhiteboardActivity extends ActionBarActivity {
         activity_stop = false;
         new PingTask().execute();
 
-        progressDialog = ProgressDialog.show(this, "Initializing", "Performing Ping", true);
+        progressDialog = ProgressDialog.show(this, "Initializing", "Performing ping", true);
 
-        Log.d(TAG, "Finished On Create");
+        Log.d(TAG, "Finished onCreate");
     }
 
     @Override
@@ -155,7 +155,7 @@ public class WhiteboardActivity extends ActionBarActivity {
             m_face.shutdown();
             Log.d(TAG, "Shutting down Face");
         }
-        Log.d(TAG, "Finished On Destroy");
+        Log.d(TAG, "Finished onDestroy");
     }
 
     @Override
@@ -181,14 +181,12 @@ public class WhiteboardActivity extends ActionBarActivity {
     }
 
     public void callback(String jsonData) {
-        //TODO: implement callback
         dataHist.add(jsonData);
         int seq = dataHist.size() - 1;
         String dataName = prefix + "/" + whiteboard + "/" + username + "/" + seq;
         final Data data = new Data();
         data.setName(new Name(dataName));
-        Blob blob = null;
-        blob = new Blob(dataHist.get(seq).getBytes());
+        Blob blob = new Blob(dataHist.get(seq).getBytes());
         Log.d(TAG, "About to send data, Size: " + dataHist.get(seq).length());
         data.setContent(blob);
 
@@ -270,126 +268,6 @@ public class WhiteboardActivity extends ActionBarActivity {
                 .show();
     }
 
-    private class RegisterPrefixTask extends AsyncTask<Void, Void, Void> {
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            Log.d(TAG, "Register Prefix Task (doInBackground)");
-            KeyChain keyChain = null;
-            try {
-                keyChain = buildTestKeyChain();
-            } catch (SecurityException e) {
-                e.printStackTrace();
-            }
-            keyChain.setFace(m_face);
-            try {
-                m_face.setCommandSigningInfo(keyChain, keyChain.getDefaultCertificateName());
-            } catch (SecurityException e) {
-                e.printStackTrace();
-            }
-            final String nameStr = prefix + "/" + whiteboard + "/" + username;
-            Name base_name = new Name(nameStr);
-            try {
-                m_face.registerPrefix(base_name, new OnInterestCallback() {
-                    @Override
-                    public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
-                        Name interestName = interest.getName();
-                        String lastComp = interestName.get(interestName.size() - 1).toEscapedString();
-                        Log.i("NDN", "Interest received: " + lastComp);
-                        int comp = Integer.parseInt(lastComp) - 1;
-
-                        Data data = new Data();
-                        data.setName(new Name(interestName));
-                        Blob blob = null;
-                        if (dataHist.size() > comp) {
-                            blob = new Blob(dataHist.get(comp).getBytes());
-                        } else {
-                            return;
-                        }
-                        data.setContent(blob);
-                        try {
-                            face.putData(data);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }, new OnRegisterFailed() {
-                    @Override
-                    public void onRegisterFailed(Name prefix) {
-                        Log.d(TAG, "Register Prefix Task: Registration Failed");
-                    }
-                });
-            } catch (IOException | SecurityException e) {
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void aVoid) {
-            progressDialog.setMessage("Setting up ChronoSync");
-            Log.d(TAG, "Register Prefix Task ended (onPostExecute)");
-            Log.d(TAG, "About to trigger Register ChronoSync");
-            new RegisterChronoSyncTask().execute();
-        }
-    }
-
-    private class FetchChangesTask extends AsyncTask<Void, Void, Void> {
-        String namePrefixStr;
-        boolean m_shouldStop = false;
-
-        public FetchChangesTask(String namePrefixStr) {
-            this.namePrefixStr = namePrefixStr;
-        }
-
-        String m_retVal;
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            Log.d(TAG, "Fetch Task (doInBackground) for prefix: " + namePrefixStr);
-            String nameStr = namePrefixStr;
-
-            try {
-                m_face.expressInterest(new Name(nameStr),
-                        new OnData() {
-                            @Override
-                            public void
-                            onData(Interest interest, Data data) {
-                                m_retVal = data.getContent().toString();
-                                m_shouldStop = true;
-                                Log.d(TAG, "Got content: " + m_retVal);
-                                mHandler.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        drawingView_canvas.callback(m_retVal);
-                                    }
-                                });
-
-                            }
-                        },
-                        new OnTimeout() {
-                            @Override
-                            public void onTimeout(Interest interest) {
-                                m_retVal = null;
-                                m_shouldStop = true;
-                                Log.d(TAG, "Got Timeout " + namePrefixStr);
-                                if (!activity_stop) {
-                                    new FetchChangesTask(namePrefixStr).execute();
-                                }
-                            }
-                        });
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void data) {
-            Log.d(TAG, "Fetch Task (onPostExecute)");
-        }
-    }
-
     private class PingTask extends AsyncTask<Void, Void, String> {
         private String m_retVal = "not changed";
         private boolean m_shouldStop = false;
@@ -449,13 +327,99 @@ public class WhiteboardActivity extends ActionBarActivity {
                         })
                         .show();
             } else {
-                progressDialog.setMessage("Registering Prefix");
-                Log.d(TAG, "Ping Task Succeeded: " + m_retVal);
-                Log.d(TAG, "ABout to trigger Registering prefix task");
+                progressDialog.setMessage("Registering prefix");
+                Log.d(TAG, "Ping Task succeeded: " + m_retVal);
+                Log.d(TAG, "About to trigger Register Prefix Task");
                 new RegisterPrefixTask().execute();
             }
         }
 
+    }
+
+    private class RegisterPrefixTask extends AsyncTask<Void, Void, String> {
+        private String m_retVal = "not changed";
+
+        @Override
+        protected String doInBackground(Void... params) {
+            Log.d(TAG, "Register Prefix Task (doInBackground)");
+            KeyChain keyChain = null;
+            try {
+                keyChain = buildTestKeyChain();
+            } catch (SecurityException e) {
+                m_retVal = "ERROR: " + e.getMessage();
+                e.printStackTrace();
+                return m_retVal;
+            }
+            keyChain.setFace(m_face);
+            try {
+                m_face.setCommandSigningInfo(keyChain, keyChain.getDefaultCertificateName());
+            } catch (SecurityException e) {
+                m_retVal = "ERROR: " + e.getMessage();
+                e.printStackTrace();
+                return m_retVal;
+            }
+            final String nameStr = prefix + "/" + whiteboard + "/" + username;
+            Name base_name = new Name(nameStr);
+            try {
+                m_face.registerPrefix(base_name, new OnInterestCallback() {
+                    @Override
+                    public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
+                        Name interestName = interest.getName();
+                        String lastComp = interestName.get(interestName.size() - 1).toEscapedString();
+                        Log.i("NDN", "Interest received: " + lastComp);
+                        int comp = Integer.parseInt(lastComp) - 1;
+
+                        Data data = new Data();
+                        data.setName(new Name(interestName));
+                        Blob blob;
+                        if (dataHist.size() > comp) {
+                            blob = new Blob(dataHist.get(comp).getBytes());
+                            data.setContent(blob);
+                        } else {
+                            return;
+                        }
+                        try {
+                            face.putData(data);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }, new OnRegisterFailed() {
+                    @Override
+                    public void onRegisterFailed(Name prefix) {
+                        Log.d(TAG, "Register Prefix Task: Registration failed");
+                    }
+                });
+            } catch (IOException | SecurityException e) {
+                m_retVal = "ERROR: " + e.getMessage();
+                e.printStackTrace();
+                return m_retVal;
+            }
+            return m_retVal;
+        }
+
+        @Override
+        protected void onPostExecute(final String result) {
+            if (m_retVal.contains("ERROR:")) {
+                progressDialog.dismiss();
+                new AlertDialog.Builder(WhiteboardActivity.this)
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setTitle("Error received")
+                        .setMessage(m_retVal)
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                finish();
+                            }
+                        })
+                        .show();
+            } else {
+                progressDialog.setMessage("Setting up ChronoSync");
+                Log.d(TAG, "Register Prefix Task ended (onPostExecute)");
+                Log.d(TAG, "About to trigger Register ChronoSync");
+                new RegisterChronoSyncTask().execute();
+            }
+        }
     }
 
     private class RegisterChronoSyncTask extends AsyncTask<Void, Void, Void> {
@@ -521,7 +485,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                                         progressDialog.dismiss();
                                     }
                                 });
-                                Log.d(TAG, "ChronoSync On Initialized");
+                                Log.d(TAG, "ChronoSync onInitialized");
                             }
                         },
                         new Name(prefix + "/" + whiteboard + "/" + username), // App data prefix
@@ -548,7 +512,6 @@ public class WhiteboardActivity extends ActionBarActivity {
 
         @Override
         protected void onPostExecute(Void aVoid) {
-
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -570,10 +533,66 @@ public class WhiteboardActivity extends ActionBarActivity {
         }
     }
 
+    private class FetchChangesTask extends AsyncTask<Void, Void, Void> {
+        String namePrefixStr;
+        boolean m_shouldStop = false;
+
+        public FetchChangesTask(String namePrefixStr) {
+            this.namePrefixStr = namePrefixStr;
+        }
+
+        String m_retVal;
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            Log.d(TAG, "Fetch Task (doInBackground) for prefix: " + namePrefixStr);
+            String nameStr = namePrefixStr;
+
+            try {
+                m_face.expressInterest(new Name(nameStr),
+                        new OnData() {
+                            @Override
+                            public void
+                            onData(Interest interest, Data data) {
+                                m_retVal = data.getContent().toString();
+                                m_shouldStop = true;
+                                Log.d(TAG, "Got content: " + m_retVal);
+                                mHandler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        drawingView_canvas.callback(m_retVal);
+                                    }
+                                });
+
+                            }
+                        },
+                        new OnTimeout() {
+                            @Override
+                            public void onTimeout(Interest interest) {
+                                m_retVal = null;
+                                m_shouldStop = true;
+                                Log.d(TAG, "Got Timeout " + namePrefixStr);
+                                if (!activity_stop) {
+                                    new FetchChangesTask(namePrefixStr).execute();
+                                }
+                            }
+                        });
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void data) {
+            Log.d(TAG, "Fetch Task (onPostExecute)");
+        }
+    }
+
     /**
      * Setup an in-memory KeyChain with a default identity.
      *
-     * @return
+     * @return keyChain object
      * @throws net.named_data.jndn.security.SecurityException
      */
     public static KeyChain buildTestKeyChain() throws net.named_data.jndn.security.SecurityException {
