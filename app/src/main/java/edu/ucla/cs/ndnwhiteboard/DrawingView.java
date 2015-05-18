@@ -284,6 +284,7 @@ public class DrawingView extends View {
                 if (type.equals("pen") || type.equals("eraser")) {
                     JSONArray coordinates = jsonObject.getJSONArray("coordinates");
                     JSONArray startPoint = coordinates.getJSONArray(0);
+                    Path drawPath = new Path();
                     float touchX = (float) startPoint.getDouble(0) * viewWidth;
                     float touchY = (float) startPoint.getDouble(1) * viewWidth;
                     drawPath.moveTo(touchX, touchY);
