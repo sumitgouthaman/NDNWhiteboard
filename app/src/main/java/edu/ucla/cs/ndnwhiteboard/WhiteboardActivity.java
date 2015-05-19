@@ -2,6 +2,7 @@ package edu.ucla.cs.ndnwhiteboard;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -11,10 +12,15 @@ import android.os.Environment;
 import android.os.Handler;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import net.named_data.jndn.Data;
@@ -34,6 +40,9 @@ import net.named_data.jndn.security.identity.MemoryIdentityStorage;
 import net.named_data.jndn.security.identity.MemoryPrivateKeyStorage;
 import net.named_data.jndn.sync.ChronoSync2013;
 import net.named_data.jndn.util.Blob;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -170,25 +179,87 @@ public class WhiteboardActivity extends ActionBarActivity {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+        //int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+       /* if (id == R.id.action_settings) {
             return true;
+        }*/
+
+        switch (item.getItemId()) {
+            case R.id.action_settings:
+                return true;
+            case R.id.text_settings:
+                textMessage();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
 
-        return super.onOptionsItemSelected(item);
+
     }
 
-    public void callback(String jsonData) {
+
+    public void textMessage() {
+
+        final JSONObject jObject = new JSONObject();
+
+        final AlertDialog.Builder textBox = new AlertDialog.Builder(this);
+
+        textBox.setTitle("NDN Text");
+        final EditText input = new EditText(this);
+        textBox.setView(input);
+
+        textBox.setPositiveButton("Send", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+
+                try {
+                    jObject.put("data", input.getText().toString() );
+                    jObject.put("type", "text");
+                    jObject.put("user", username);
+                    callback(jObject.toString());
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+                Context context = getApplicationContext();
+                CharSequence message;
+                message = "Message Sent";
+
+
+                LayoutInflater inflater = (LayoutInflater) context.getSystemService( Context.LAYOUT_INFLATER_SERVICE );
+                View layout = inflater.inflate(R.layout.activity_text,
+                        (ViewGroup) findViewById(R.id.toast_layout_root));
+
+                TextView text = (TextView) layout.findViewById(R.id.text);
+                text.setText(message);
+
+                Toast toast = new Toast(context);
+                toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
+                toast.setDuration(Toast.LENGTH_LONG);
+                toast.setView(layout);
+                toast.show();
+            }
+        });
+
+        textBox.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                // Canceled.
+                dialog.cancel();
+            }
+        });
+
+        textBox.show();
+
+
+    }
+
+
+
+
+ public void callback(String jsonData) {
         dataHist.add(jsonData);
-//        int seq = dataHist.size() - 1;
-//        String dataName = prefix + "/" + whiteboard + "/" + username + "/" + seq;
-//        final Data data = new Data();
-//        data.setName(new Name(dataName));
-//        Blob blob = new Blob(dataHist.get(seq).getBytes());
-//        Log.d(TAG, "About to send data, Size: " + dataHist.get(seq).length());
-//        data.setContent(blob);
 
         new Thread(new Runnable() {
             @Override

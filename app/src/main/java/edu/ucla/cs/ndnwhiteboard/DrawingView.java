@@ -11,8 +11,12 @@ import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONArray;
@@ -196,7 +200,7 @@ public class DrawingView extends View {
     }
 
     public void incrementColor() {
-        if (!isEraser && ++currentColor > num_colors-1) {
+        if (!isEraser && ++currentColor > num_colors - 1) {
             currentColor = 0;
         }
         setColor(currentColor);
@@ -278,9 +282,25 @@ public class DrawingView extends View {
                     history.clear();
                     drawCanvas.drawColor(Color.WHITE);
                     invalidate();
+                } else if (type.equals("text")) {
+                    String message = jsonObject.getString("data");
+                    LayoutInflater inflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                    View layout = inflater.inflate(R.layout.activity_text,
+                            (ViewGroup) findViewById(R.id.toast_layout_root));
+
+                    TextView text = (TextView) layout.findViewById(R.id.text);
+                    text.setText(message);
+
+                    Toast toast = new Toast(activity);
+                    toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
+                    toast.setDuration(Toast.LENGTH_LONG);
+                    toast.setView(layout);
+                    toast.show();
+
                 } else {
                     throw new JSONException("Unrecognized string: " + string);
                 }
+
                 if (type.equals("pen") || type.equals("eraser")) {
                     JSONArray coordinates = jsonObject.getJSONArray("coordinates");
                     JSONArray startPoint = coordinates.getJSONArray(0);
