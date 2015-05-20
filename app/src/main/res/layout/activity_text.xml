@@ -1,18 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/toast_layout_root"
     android:orientation="horizontal"
-    android:layout_width="@dimen/abc_text_size_display_1_material"
-    android:layout_height="@dimen/abc_text_size_display_1_material"
-    android:padding="8dp"
-    android:background="#DAAA"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:paddingTop="8dp"
+    android:paddingLeft="8dp"
+    android:paddingRight="8dp"
+    android:paddingBottom="16dp"
+    android:background="@drawable/chat_bubble_blue"
+
     >
 
-    <TextView android:id="@+id/text"
+    <TextView android:id="@+id/text_username"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#CC33FF"
-        android:textColorHint="#00CC00"
+        android:textColor="#000000"
+        android:text="Message sender"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        android:textStyle="bold"
+        android:layout_alignParentTop="true"
+        android:paddingBottom="8dp"
         />
-</LinearLayout>
+    <TextView android:id="@+id/text_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#000000"
+        android:text="Message content"
+        android:paddingLeft="16dp"
+        android:layout_below="@+id/text_username"
+        />
+</RelativeLayout>

@@ -288,8 +288,12 @@ public class DrawingView extends View {
                     View layout = inflater.inflate(R.layout.activity_text,
                             (ViewGroup) findViewById(R.id.toast_layout_root));
 
-                    TextView text = (TextView) layout.findViewById(R.id.text);
+                    TextView text = (TextView) layout.findViewById(R.id.text_message);
                     text.setText(message);
+
+                    String username = jsonObject.getString("user");
+                    TextView text_username = (TextView) layout.findViewById(R.id.text_username);
+                    text_username.setText(username + ": ");
 
                     Toast toast = new Toast(activity);
                     toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);

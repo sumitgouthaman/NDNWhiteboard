@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.support.v7.app.ActionBarActivity;
+import android.text.InputType;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -208,6 +209,7 @@ public class WhiteboardActivity extends ActionBarActivity {
 
         textBox.setTitle("NDN Text");
         final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         textBox.setView(input);
 
         textBox.setPositiveButton("Send", new DialogInterface.OnClickListener() {
@@ -223,23 +225,7 @@ public class WhiteboardActivity extends ActionBarActivity {
                     e.printStackTrace();
                 }
 
-                Context context = getApplicationContext();
-                CharSequence message;
-                message = "Message Sent";
-
-
-                LayoutInflater inflater = (LayoutInflater) context.getSystemService( Context.LAYOUT_INFLATER_SERVICE );
-                View layout = inflater.inflate(R.layout.activity_text,
-                        (ViewGroup) findViewById(R.id.toast_layout_root));
-
-                TextView text = (TextView) layout.findViewById(R.id.text);
-                text.setText(message);
-
-                Toast toast = new Toast(context);
-                toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
-                toast.setDuration(Toast.LENGTH_LONG);
-                toast.setView(layout);
-                toast.show();
+                Toast.makeText(getApplicationContext(), "Message sent", Toast.LENGTH_SHORT).show();
             }
         });
 
