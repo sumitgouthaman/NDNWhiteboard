@@ -7,43 +7,43 @@ import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 
-
+/**
+ * IntroActivity: The first activity to appear when the app starts.
+ *
+ * The activity displays the generated username and whiteboard name along with the prefix to be
+ * used by the application.
+ */
 public class IntroActivity extends ActionBarActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_intro);
+
+        // Display the generated whiteboard name
         ((EditText) findViewById(R.id.whiteboardName)).setText(Utils.genWhiteboardName());
+
+        // Display the randomly generated username
         ((EditText) findViewById(R.id.userName)).setText(Utils.generateRandomName());
+
+        Button startButton = (Button) findViewById(R.id.startButton);
+        startButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Start the whiteboard
+                onStartClicked();
+            }
+        });
     }
 
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_intro, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    public void onStart(View view) {
+    /**
+     * Function to start the Whiteboard activity
+     */
+    public void onStartClicked() {
+        // Check for errors
         boolean error = false;
         if (((EditText) findViewById(R.id.userName)).getText().toString().trim().length() == 0) {
             ((EditText) findViewById(R.id.userName)).setHintTextColor(Color.RED);
@@ -53,15 +53,18 @@ public class IntroActivity extends ActionBarActivity {
             ((EditText) findViewById(R.id.whiteboardName)).setHintTextColor(Color.RED);
             error = true;
         }
-
         if (error) {
             return;
         }
+
+        // Create whiteboard activity intent
         Intent WhiteboardActivityIntent = new Intent(this, WhiteboardActivity.class);
+        // Send necessary parameters
         WhiteboardActivityIntent
                 .putExtra("name", ((EditText) findViewById(R.id.userName)).getText().toString())
                 .putExtra("whiteboard", ((EditText) findViewById(R.id.whiteboardName)).getText().toString())
                 .putExtra("prefix", ((EditText) findViewById(R.id.prefixName)).getText().toString());
+        // Start whiteboard activity
         startActivity(WhiteboardActivityIntent);
     }
 }

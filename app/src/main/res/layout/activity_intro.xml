@@ -79,7 +79,6 @@
         android:text="START"
         android:id="@+id/startButton"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="20dp"
-        android:onClick="onStart"/>
+        android:layout_marginTop="20dp"/>
 
 </LinearLayout>
