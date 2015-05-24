@@ -9,10 +9,10 @@ import java.util.Calendar;
 public class Utils {
     /**
      * Generates name for whiteboard.
-     *
+     * <p/>
      * Ensures that whiteboard names generated within 5 minutes of each other are same. The format
      * of the name is:
-     *      board_[day_of_month]_[hour_of_day]_[minute_divided_by_5]
+     * board_[day_of_month]_[hour_of_day]_[minute_divided_by_5]
      *
      * @return The generated whiteboard name
      */
@@ -24,7 +24,7 @@ public class Utils {
 
     /**
      * Function to generate random name for the user.
-     *
+     * <p/>
      * THe name will include lower and upper case alphabets.
      *
      * @return the generated username

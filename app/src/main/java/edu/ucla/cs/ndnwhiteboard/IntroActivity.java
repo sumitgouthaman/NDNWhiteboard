@@ -4,15 +4,13 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
 /**
  * IntroActivity: The first activity to appear when the app starts.
- *
+ * <p/>
  * The activity displays the generated username and whiteboard name along with the prefix to be
  * used by the application.
  */

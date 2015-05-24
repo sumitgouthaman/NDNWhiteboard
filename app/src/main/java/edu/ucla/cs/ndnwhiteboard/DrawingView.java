@@ -27,50 +27,60 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 /**
- * TODO: document your custom view class.
+ * DrawingView: Custom view that handles the drawing for the whiteboard
  */
 public class DrawingView extends View {
+    private boolean isEraser = false;  // Is the eraser button enabled
+    private int currentColor = 0;      // Current pen color
+    private int viewWidth = 0;         // Width of the screen in pixels
 
-    private boolean isEraser = false;
-    private int currentColor = 0;
-    private int viewWidth = 0;
-
-    //drawing path
-    private Path drawPath = new Path();
-    //drawing and canvas paint
-    private Paint drawPaint = new Paint(), canvasPaint = new Paint(Paint.DITHER_FLAG);
-    //colors
-    //private int[] colors = {Color.BLACK, Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW};
-    //Better Colors (All dark)
-    private int[] colors = {Color.BLACK, Color.RED, Color.BLUE, 0xFF458B00, 0xFFED9121};
-    int num_colors = colors.length;
-    //canvas
+    // Objects to handle painting
     private Canvas drawCanvas;
-    //canvas bitmap
+    private Path drawPath = new Path();
+    private Paint drawPaint = new Paint();
+    private Paint canvasPaint = new Paint(Paint.DITHER_FLAG);
     private Bitmap canvasBitmap;
 
+    // Colors for the pen
+    private int[] colors = {Color.BLACK,
+            Color.RED,
+            Color.BLUE,
+            0xFF458B00,  // Dark green
+            0xFFED9121}; // Orange
+    int num_colors = colors.length;
+
+    // JSON Objects
     private JSONObject jsonObject = new JSONObject();
     private ArrayList<String> history = new ArrayList<>();
     private ArrayList<PointF> points = new ArrayList<>();
-    private WhiteboardActivity activity;
 
-    private boolean initialDrawn = false;
+    // Reference to the associated WhiteboardActivity
+    private WhiteboardActivity whiteboardActivity;
 
-    private String TAG = DrawingView.class.getSimpleName();
+    private String TAG = DrawingView.class.getSimpleName(); // TAG for logging
 
-    public void setActivity(WhiteboardActivity activity) {
-        this.activity = activity;
-    }
-
+    /**
+     * Contructor
+     *
+     * @param context
+     * @param attrs
+     */
     public DrawingView(Context context, AttributeSet attrs) {
         super(context, attrs);
         setupDrawing();
     }
 
+    /**
+     * Initialize objects necessary for drawing
+     */
     private void setupDrawing() {
-        int dp = 3;
+        int dp = 3; // Initial pen width
+
+        // Make pixel width density independent
         DisplayMetrics dm = getResources().getDisplayMetrics();
         float pixelWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, dm);
+
+        // Set initial parameters
         drawPaint.setColor(Color.BLACK);
         drawPaint.setAntiAlias(true);
         drawPaint.setStrokeWidth(pixelWidth);
@@ -79,37 +89,76 @@ public class DrawingView extends View {
         drawPaint.setStrokeCap(Paint.Cap.ROUND);
     }
 
+    /**
+     * Overriding the onSizeChanged method of the View class
+     *
+     * @param w
+     * @param h
+     * @param oldw
+     * @param oldh
+     */
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
+
+        // Store view width for later
         viewWidth = w;
-        //Log.d(TAG, "String.valueOf(w): " + String.valueOf(w));
-        //Log.d(TAG, "String.valueOf(h)" + String.valueOf(h));
+
+        // Make sure the height is 6/5 times the width
         this.getLayoutParams().height = (int) (6 / 5f * viewWidth);
+
+        // Create bitmap for the drawing
         canvasBitmap = Bitmap.createBitmap(w, (int) (6 / 5f * w), Bitmap.Config.ARGB_8888);
         drawCanvas = new Canvas(canvasBitmap);
-        if (!initialDrawn && h == (int) (6 / 5f * w)) {
-            initialDrawn = true;
-        }
     }
 
+    /**
+     * Overrriding the onDraw method of the View class
+     *
+     * @param canvas
+     */
     @Override
     protected void onDraw(Canvas canvas) {
         canvas.drawBitmap(canvasBitmap, 0, 0, canvasPaint);
         canvas.drawPath(drawPath, drawPaint);
     }
 
+    /**
+     * Create link back to the WhiteboardActivity
+     *
+     * @param whiteboardActivity reference to the associated WhiteboardActivity
+     */
+    public void setWhiteboardActivity(WhiteboardActivity whiteboardActivity) {
+        this.whiteboardActivity = whiteboardActivity;
+    }
+
+    /**
+     * Overriding onTouchEvent method of the View class
+     *
+     * @param event
+     * @return true because event was handled
+     */
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        // Sending coordinates only to 3 decimal values
         DecimalFormat df = new DecimalFormat("#.###");
+
+        // Get the coordinates of the touch
         float touchX = event.getX();
         float touchY = event.getY();
+
+        // Handle the type of event
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
+                // First point in the stroke being drawn
+
+                // Position start of curve to position
                 drawPath.moveTo(touchX, touchY);
+
+                // Create the JSON object to be sent and fill relevant fields
                 try {
                     jsonObject = new JSONObject();
-                    jsonObject.put("user", activity.username);
+                    jsonObject.put("user", whiteboardActivity.username);
                     jsonObject.put("type", (isEraser) ? "eraser" : "pen");
                     if (!isEraser) {
                         jsonObject.put("color", currentColor);
@@ -117,14 +166,24 @@ public class DrawingView extends View {
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
+
+                // Add point to the arraylist of points in this curve
                 points.add(new PointF(touchX, touchY));
                 break;
+
             case MotionEvent.ACTION_MOVE:
+                // Handle point somewhere in middle of the stroke
                 drawPath.lineTo(touchX, touchY);
+
+                // Add point to the arraylist of points in current curve
                 points.add(new PointF(touchX, touchY));
-                int maxCoordSize = (8000 - activity.username.length()) / 18;
+
+                // maxCoordSize determines if the number of points in the current curve being drawn
+                // is too much to send in one NDN packet.
+                // If so, chop up the data and send what is already accumulated.
+                int maxCoordSize = (8000 - whiteboardActivity.username.length()) / 18;
                 if (points.size() == maxCoordSize) {
-                    //Log.d(TAG, "maxCoordSize: " + maxCoordSize);
+                    // Handle number of points exceeding capacity of one NDN packet
                     drawCanvas.drawPath(drawPath, drawPaint);
                     drawPath.reset();
                     drawPath.moveTo(touchX, touchY);
@@ -144,10 +203,12 @@ public class DrawingView extends View {
                     }
                     String jsonString = jsonObject.toString();
                     history.add(jsonString);
-                    activity.callback(jsonString);
+                    whiteboardActivity.callback(jsonString);
                 }
                 break;
+
             case MotionEvent.ACTION_UP:
+                // Handle last point in the current stroke
                 drawCanvas.drawPath(drawPath, drawPaint);
                 drawPath.reset();
                 try {
@@ -165,40 +226,56 @@ public class DrawingView extends View {
                 }
                 String jsonString = jsonObject.toString();
                 history.add(jsonString);
-                activity.callback(jsonString);
+                whiteboardActivity.callback(jsonString);
                 break;
+
             default:
                 return false;
         }
-        invalidate();
-        return true;
+        invalidate(); // Trigger a redraw of the view
+        return true;  // Because event has been handled
     }
 
+    /**
+     * Enable pencil button
+     */
     public void setPencil() {
         setColor(currentColor);
     }
 
+    // Enable eraser button
     public void setEraser() {
-        int dp = 20;
+        int dp = 20; // Default size of eraser
+
+        // Make eraser width density independent
         DisplayMetrics dm = getResources().getDisplayMetrics();
         float pixelWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, dm);
-        activity.setButtonColor(Color.WHITE);
+
+        // Set values to enable erasing
+        whiteboardActivity.setButtonColor(Color.WHITE);
         drawPaint.setColor(Color.WHITE);
         drawPaint.setStrokeWidth(pixelWidth);
         isEraser = true;
     }
 
+    // Change color of the pen
     private void setColor(int c) {
-        int dp = 3;
+        int dp = 3; // Default width of the pen
+
+        // Make width density independent
         DisplayMetrics dm = getResources().getDisplayMetrics();
         float pixelWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, dm);
+
         currentColor = c;
-        activity.setButtonColor(colors[currentColor]);
+        whiteboardActivity.setButtonColor(colors[currentColor]);
         drawPaint.setColor(colors[currentColor]);
         drawPaint.setStrokeWidth(pixelWidth);
         isEraser = false;
     }
 
+    /**
+     * Increment color of the pen
+     */
     public void incrementColor() {
         if (!isEraser && ++currentColor > num_colors - 1) {
             currentColor = 0;
@@ -206,50 +283,74 @@ public class DrawingView extends View {
         setColor(currentColor);
     }
 
+    /**
+     * Function to handle undo
+     */
     public void undo() {
+        // If history is empty, ignore
         if (history.isEmpty()) {
-            Toast.makeText(activity, "No more history", Toast.LENGTH_SHORT).show();
+            Toast.makeText(whiteboardActivity, "No more history", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        // If history is not empty, go through it and delete last action by this user
         for (int i = history.size() - 1; i >= 0; i--) {
-            if (history.get(i).contains("\"user\":\"" + activity.username + "\"")) {
+            if (history.get(i).contains("\"user\":\"" + whiteboardActivity.username + "\"")) {
                 history.remove(i);
                 try {
                     jsonObject = new JSONObject();
-                    jsonObject.put("user", activity.username);
+                    jsonObject.put("user", whiteboardActivity.username);
                     jsonObject.put("type", "undo");
-                    activity.callback(jsonObject.toString());
+                    whiteboardActivity.callback(jsonObject.toString());
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
                 break;
             }
         }
+
+        // Erase canvas
         drawCanvas.drawColor(Color.WHITE);
-        invalidate();
+
+        invalidate(); // Trigger redraw of the view
+
         for (String string : history) {
-            parseJSON(string, false);
+            parseJSON(string, false); //Reperform all the actions in history
         }
     }
 
+    /**
+     * Function to clear the whiteboard
+     */
     public void clear() {
         history.clear();
         drawCanvas.drawColor(Color.WHITE);
         invalidate();
         try {
             jsonObject = new JSONObject();
-            jsonObject.put("user", activity.username);
+            jsonObject.put("user", whiteboardActivity.username);
             jsonObject.put("type", "clear");
-            activity.callback(jsonObject.toString());
+            whiteboardActivity.callback(jsonObject.toString());
         } catch (JSONException e) {
             e.printStackTrace();
         }
     }
 
+    /**
+     * Helper Function to parse and draw the action mentioned in the passed JSON string
+     *
+     * @param string the json representation of the action to be performed
+     */
     public void callback(String string) {
         parseJSON(string, true);
     }
 
+    /**
+     * Function to parse and draw the action mentioned in the passed JSON string
+     *
+     * @param string       the json representation of the action to be performed
+     * @param addToHistory if true, add the action to history
+     */
     public void parseJSON(String string, boolean addToHistory) {
         try {
             JSONObject jsonObject = new JSONObject(string);
@@ -257,7 +358,9 @@ public class DrawingView extends View {
                 int colorBefore = currentColor;
                 boolean isEraserBefore = isEraser;
                 String type = jsonObject.get("type").toString();
+
                 if (type.equals("pen")) {
+                    // If type pen, extract color
                     int color = jsonObject.getInt("color");
                     setColor(color);
                 } else if (type.equals("eraser")) {
@@ -283,8 +386,10 @@ public class DrawingView extends View {
                     drawCanvas.drawColor(Color.WHITE);
                     invalidate();
                 } else if (type.equals("text")) {
+                    // Create a toast of the message text
                     String message = jsonObject.getString("data");
-                    LayoutInflater inflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                    LayoutInflater inflater = (LayoutInflater) whiteboardActivity.getSystemService(
+                            Context.LAYOUT_INFLATER_SERVICE);
                     View layout = inflater.inflate(R.layout.activity_text,
                             (ViewGroup) findViewById(R.id.toast_layout_root));
 
@@ -295,7 +400,7 @@ public class DrawingView extends View {
                     TextView text_username = (TextView) layout.findViewById(R.id.text_username);
                     text_username.setText(username + ": ");
 
-                    Toast toast = new Toast(activity);
+                    Toast toast = new Toast(whiteboardActivity);
                     toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
                     toast.setDuration(Toast.LENGTH_LONG);
                     toast.setView(layout);
@@ -337,5 +442,4 @@ public class DrawingView extends View {
             e.printStackTrace();
         }
     }
-
 }

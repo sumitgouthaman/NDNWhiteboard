@@ -2,7 +2,6 @@ package edu.ucla.cs.ndnwhiteboard;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -13,15 +12,11 @@ import android.os.Handler;
 import android.support.v7.app.ActionBarActivity;
 import android.text.InputType;
 import android.util.Log;
-import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import net.named_data.jndn.Data;
@@ -105,7 +100,7 @@ public class WhiteboardActivity extends ActionBarActivity {
         button_save = (ImageButton) findViewById(R.id.button_save);
         button_undo = (ImageButton) findViewById(R.id.button_undo);
         button_clear = (ImageButton) findViewById(R.id.button_clear);
-        drawingView_canvas.setActivity(this);
+        drawingView_canvas.setWhiteboardActivity(this);
 
         button_pencil.setOnClickListener(new View.OnClickListener() {
             @Override
