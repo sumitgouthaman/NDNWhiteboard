@@ -2,6 +2,7 @@ package edu.ucla.cs.ndnwhiteboard;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -9,6 +10,8 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.speech.RecognizerIntent;
+import android.speech.tts.TextToSpeech;
 import android.support.v7.app.ActionBarActivity;
 import android.text.InputType;
 import android.util.Log;
@@ -50,12 +53,13 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
  * WhiteboardActivity: Main activity that displays the whiteboard for drawing
  */
-public class WhiteboardActivity extends ActionBarActivity {
+public class WhiteboardActivity extends ActionBarActivity implements TextToSpeech.OnInitListener {
     private DrawingView drawingView_canvas; // Reference to the associated DrawingView
 
     // View references
@@ -83,8 +87,11 @@ public class WhiteboardActivity extends ActionBarActivity {
 
     Handler mHandler = new Handler();      // To handle view access from other threads
     ProgressDialog progressDialog = null;  // Progress dialog for initial setup
+    private TextToSpeech tts;              // Text-To-Speech feature
+    private boolean ttsSuccessful = true;  // Was TTS initialization successful
 
     private String TAG = WhiteboardActivity.class.getSimpleName();  // TAG for logging
+    protected static final int RESULT_SPEECH = 1;
 
     /**
      * Overriding the onCreate from Activity class
@@ -157,6 +164,8 @@ public class WhiteboardActivity extends ActionBarActivity {
             }
         });
 
+        tts = new TextToSpeech(this, this);
+
         // Start Ping sequence
         activity_stop = false;
         new PingTask().execute();
@@ -172,6 +181,12 @@ public class WhiteboardActivity extends ActionBarActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        // Shutdown tts!
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+        }
 
         // Set the boolean flag that stops all long running loops
         activity_stop = true;
@@ -209,8 +224,56 @@ public class WhiteboardActivity extends ActionBarActivity {
             case R.id.action_text:
                 textMessage();
                 return true;
+            case R.id.action_speech:
+                speechMessage();
             default:
                 return super.onOptionsItemSelected(item);
+        }
+    }
+
+    /**
+     * Listen to user, convert to text and send.
+     */
+    private void speechMessage() {
+        Intent intent = new Intent(
+                RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, "en-US");
+        try {
+            startActivityForResult(intent, RESULT_SPEECH);
+        } catch (ActivityNotFoundException a) {
+            Toast t = Toast.makeText(getApplicationContext(),
+                    "Opps! Your device doesn't support Speech to Text",
+                    Toast.LENGTH_SHORT);
+            t.show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        switch (requestCode) {
+            case RESULT_SPEECH: {
+                if (resultCode == RESULT_OK && null != data) {
+                    ArrayList<String> text = data
+                            .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+
+                    String speechStr = text.get(0);
+                    final JSONObject jObject = new JSONObject();
+                    try {
+                        jObject.put("data", speechStr);
+                        jObject.put("type", "speech");
+                        jObject.put("user", username);
+                        callback(jObject.toString());
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                    Toast.makeText(getApplicationContext(), "Message sent", Toast.LENGTH_SHORT).show();
+                }
+                break;
+            }
+
         }
     }
 
@@ -351,6 +414,37 @@ public class WhiteboardActivity extends ActionBarActivity {
                 })
                 .setNegativeButton("No", null)
                 .show();
+    }
+
+    /**
+     * Speak out the message
+     * @param ttsStr
+     */
+    public void speakOut(String ttsStr) {
+        if (!ttsSuccessful) {
+            // If Text-To-Speech is not available for some reason
+            Toast.makeText(this, ttsStr, Toast.LENGTH_LONG).show();
+        } else {
+            tts.speak(ttsStr, TextToSpeech.QUEUE_FLUSH, null);
+        }
+    }
+
+    /**
+     * Handle initialization of Text-To-Speech
+     * @param status
+     */
+    @Override
+    public void onInit(int status) {
+        if (status == TextToSpeech.SUCCESS) {
+            int result = tts.setLanguage(Locale.US);
+            if (result == TextToSpeech.LANG_MISSING_DATA
+                    || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Log.e("TTS", "This Language is not supported");
+                ttsSuccessful = false;
+            }
+        } else {
+            Log.e("TTS", "Initilization Failed!");
+        }
     }
 
     /**

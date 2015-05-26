@@ -406,6 +406,11 @@ public class DrawingView extends View {
                     toast.setView(layout);
                     toast.show();
 
+                } else if (type.equals("speech")) {
+                    String message = jsonObject.getString("data");
+                    String username = jsonObject.getString("user");
+                    String ttsStr = username + " says, " + message;
+                    whiteboardActivity.speakOut(ttsStr);
                 } else {
                     throw new JSONException("Unrecognized string: " + string);
                 }

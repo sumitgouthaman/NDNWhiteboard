@@ -2,6 +2,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="edu.ucla.cs.ndnwhiteboard.WhiteboardActivity">
-       <item android:id="@+id/action_text" android:title="@string/text_settings"
-        android:orderInCategory="100" app:showAsAction="never" />
+    <item
+        android:id="@+id/action_text"
+        android:title="@string/text_settings"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_speech"
+        android:title="@string/speech_settings"
+        app:showAsAction="never" />
 </menu>
