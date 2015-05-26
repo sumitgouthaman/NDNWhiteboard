@@ -9,7 +9,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
-        <Activity
+        <activity
             android:name=".IntroActivity"
             android:label="@string/title_activity_intro"
             android:screenOrientation="portrait" >
@@ -17,12 +17,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </Activity>
-        <Activity
+        </activity>
+        <activity
             android:name=".WhiteboardActivity"
             android:label="@string/title_activity_whiteboard"
             android:screenOrientation="portrait" >
-        </Activity>
+        </activity>
     </application>
 
 </manifest>
