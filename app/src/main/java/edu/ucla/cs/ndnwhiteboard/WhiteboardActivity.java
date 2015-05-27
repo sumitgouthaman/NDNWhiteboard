@@ -63,12 +63,7 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
     private DrawingView drawingView_canvas; // Reference to the associated DrawingView
 
     // View references
-    private ImageButton button_pencil;
-    private ImageButton button_eraser;
     private ImageButton button_color;
-    private ImageButton button_save;
-    private ImageButton button_undo;
-    private ImageButton button_clear;
 
     // Parameters passed from IntroActivity
     public String username;
@@ -76,10 +71,10 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
     private String prefix;
 
     boolean activity_stop = false; // To know when to stop long-running loops
-    ArrayList<String> dataHist = new ArrayList<String>();  // History of packets generated
+    ArrayList<String> dataHist = new ArrayList<>();  // History of packets generated
 
     // Keeping track of what seq nos are requested from each user
-    Map<String, Long> highestRequested = new HashMap<String, Long>();
+    Map<String, Long> highestRequested = new HashMap<>();
 
     // NDN related references
     private Face m_face;          // References to the Face being used
@@ -96,7 +91,7 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
     /**
      * Overriding the onCreate from Activity class
      *
-     * @param savedInstanceState
+     * @param savedInstanceState previous saved state
      */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,12 +111,12 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
 
         // Get relevant View references
         drawingView_canvas = (DrawingView) findViewById(R.id.drawingview_canvas);
-        button_pencil = (ImageButton) findViewById(R.id.button_pencil);
-        button_eraser = (ImageButton) findViewById(R.id.button_eraser);
+        ImageButton button_pencil = (ImageButton) findViewById(R.id.button_pencil);
+        ImageButton button_eraser = (ImageButton) findViewById(R.id.button_eraser);
         button_color = (ImageButton) findViewById(R.id.button_color);
-        button_save = (ImageButton) findViewById(R.id.button_save);
-        button_undo = (ImageButton) findViewById(R.id.button_undo);
-        button_clear = (ImageButton) findViewById(R.id.button_clear);
+        ImageButton button_save = (ImageButton) findViewById(R.id.button_save);
+        ImageButton button_undo = (ImageButton) findViewById(R.id.button_undo);
+        ImageButton button_clear = (ImageButton) findViewById(R.id.button_clear);
 
         // Set link to this activity in the DrawingView class
         drawingView_canvas.setWhiteboardActivity(this);
@@ -202,8 +197,8 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
     /**
      * Show menu items
      *
-     * @param menu
-     * @return
+     * @param menu menu for this activity
+     * @return whether menu was inflated successfully
      */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -215,8 +210,8 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
     /**
      * Handle menu item click
      *
-     * @param item
-     * @return
+     * @param item the selected item from the menu
+     * @return whether item click was handled
      */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -226,6 +221,7 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
                 return true;
             case R.id.action_speech:
                 speechMessage();
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -346,7 +342,7 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
     /**
      * Change color of the color button based the currently active color
      *
-     * @param color
+     * @param color the color to paint the button
      */
     public void setButtonColor(int color) {
         button_color.setBackgroundColor(color);
@@ -384,18 +380,22 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
                     public void onClick(DialogInterface dialog, int which) {
                         drawingView_canvas.setDrawingCacheEnabled(true);
                         Date date = new Date();
-                        Format formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss");
+                        Format formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss", Locale.US);
                         String fileName = formatter.format(date) + ".png";
                         if (android.os.Environment.getExternalStorageState()
                                 .equals(android.os.Environment.MEDIA_MOUNTED)) {
                             File sdCard = Environment.getExternalStorageDirectory();
                             File dir = new File(sdCard.getAbsolutePath() + "/NDN_Whiteboard");
-                            dir.mkdirs();
+                            boolean directoryCreated = dir.mkdirs();
+                            if (!directoryCreated) {
+                                Toast.makeText(getApplicationContext(), "Save Failed!",
+                                        Toast.LENGTH_SHORT).show();
+                            }
                             File file = new File(dir, fileName);
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
                             drawingView_canvas.getDrawingCache()
                                     .compress(Bitmap.CompressFormat.PNG, 100, baos);
-                            FileOutputStream f = null;
+                            FileOutputStream f;
                             try {
                                 f = new FileOutputStream(file);
                                 f.write(baos.toByteArray());
@@ -418,20 +418,23 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
 
     /**
      * Speak out the message
-     * @param ttsStr
+     *
+     * @param ttsStr the String to be spoken out
      */
     public void speakOut(String ttsStr) {
         if (!ttsSuccessful) {
             // If Text-To-Speech is not available for some reason
             Toast.makeText(this, ttsStr, Toast.LENGTH_LONG).show();
         } else {
+            //noinspection deprecation
             tts.speak(ttsStr, TextToSpeech.QUEUE_FLUSH, null);
         }
     }
 
     /**
      * Handle initialization of Text-To-Speech
-     * @param status
+     *
+     * @param status the initialization status of the TTS service
      */
     @Override
     public void onInit(int status) {
@@ -539,7 +542,7 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
             Log.d(TAG, "Register Prefix Task (doInBackground)");
 
             // Create keychain
-            KeyChain keyChain = null;
+            KeyChain keyChain;
             try {
                 keyChain = buildTestKeyChain();
             } catch (SecurityException e) {
