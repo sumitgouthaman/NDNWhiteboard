@@ -8,6 +8,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
+import edu.ucla.cs.ndnwhiteboard.helpers.Utils;
+
 /**
  * IntroActivity: The first activity to appear when the app starts.
  * <p/>

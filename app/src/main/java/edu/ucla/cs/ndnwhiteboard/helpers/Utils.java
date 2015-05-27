@@ -1,4 +1,10 @@
-package edu.ucla.cs.ndnwhiteboard;
+package edu.ucla.cs.ndnwhiteboard.helpers;
+
+import net.named_data.jndn.Name;
+import net.named_data.jndn.security.KeyChain;
+import net.named_data.jndn.security.identity.IdentityManager;
+import net.named_data.jndn.security.identity.MemoryIdentityStorage;
+import net.named_data.jndn.security.identity.MemoryPrivateKeyStorage;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -40,5 +46,25 @@ public class Utils {
             sb.append(seed.charAt(random));
         }
         return sb.toString();
+    }
+
+    /**
+     * Setup an in-memory KeyChain with a default identity.
+     *
+     * @return keyChain object
+     * @throws net.named_data.jndn.security.SecurityException
+     */
+    public static KeyChain buildTestKeyChain() throws net.named_data.jndn.security.SecurityException {
+        MemoryIdentityStorage identityStorage = new MemoryIdentityStorage();
+        MemoryPrivateKeyStorage privateKeyStorage = new MemoryPrivateKeyStorage();
+        IdentityManager identityManager = new IdentityManager(identityStorage, privateKeyStorage);
+        KeyChain keyChain = new KeyChain(identityManager);
+        try {
+            keyChain.getDefaultCertificateName();
+        } catch (net.named_data.jndn.security.SecurityException e) {
+            keyChain.createIdentity(new Name("/test/identity"));
+            keyChain.getIdentityManager().setDefaultIdentity(new Name("/test/identity"));
+        }
+        return keyChain;
     }
 }

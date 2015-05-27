@@ -6,13 +6,10 @@ import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.speech.RecognizerIntent;
-import android.speech.tts.TextToSpeech;
-import android.support.v7.app.ActionBarActivity;
 import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
@@ -22,23 +19,7 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
-import net.named_data.jndn.Data;
-import net.named_data.jndn.Face;
-import net.named_data.jndn.Interest;
-import net.named_data.jndn.InterestFilter;
-import net.named_data.jndn.Name;
-import net.named_data.jndn.OnData;
-import net.named_data.jndn.OnInterestCallback;
-import net.named_data.jndn.OnRegisterFailed;
-import net.named_data.jndn.OnTimeout;
-import net.named_data.jndn.encoding.EncodingException;
-import net.named_data.jndn.security.KeyChain;
 import net.named_data.jndn.security.SecurityException;
-import net.named_data.jndn.security.identity.IdentityManager;
-import net.named_data.jndn.security.identity.MemoryIdentityStorage;
-import net.named_data.jndn.security.identity.MemoryPrivateKeyStorage;
-import net.named_data.jndn.sync.ChronoSync2013;
-import net.named_data.jndn.util.Blob;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -52,38 +33,33 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
-import java.util.Map;
+
+import edu.ucla.cs.ndnwhiteboard.custom_views.DrawingView;
+import edu.ucla.cs.ndnwhiteboard.helpers.TextToSpeechHelper;
+import edu.ucla.cs.ndnwhiteboard.interfaces.NDNChronoSyncActivity;
+import edu.ucla.cs.ndnwhiteboard.tasks.PingTask;
 
 /**
  * WhiteboardActivity: Main activity that displays the whiteboard for drawing
  */
-public class WhiteboardActivity extends ActionBarActivity implements TextToSpeech.OnInitListener {
+public class WhiteboardActivity extends NDNChronoSyncActivity { // ActionBarActivity
     private DrawingView drawingView_canvas; // Reference to the associated DrawingView
 
     // View references
     private ImageButton button_color;
 
     // Parameters passed from IntroActivity
-    public String username;
     private String whiteboard;
     private String prefix;
 
-    boolean activity_stop = false; // To know when to stop long-running loops
-    ArrayList<String> dataHist = new ArrayList<>();  // History of packets generated
-
-    // Keeping track of what seq nos are requested from each user
-    Map<String, Long> highestRequested = new HashMap<>();
-
     // NDN related references
-    private Face m_face;          // References to the Face being used
-    private ChronoSync2013 sync;  // References to the ChronoSync object
+    //public Face m_face;          // References to the Face being used
+    //public ChronoSync2013 sync;  // References to the ChronoSync object
 
     Handler mHandler = new Handler();      // To handle view access from other threads
     ProgressDialog progressDialog = null;  // Progress dialog for initial setup
-    private TextToSpeech tts;              // Text-To-Speech feature
-    private boolean ttsSuccessful = true;  // Was TTS initialization successful
+    TextToSpeechHelper ttsHelper; // Helper for TTS
 
     private String TAG = WhiteboardActivity.class.getSimpleName();  // TAG for logging
     protected static final int RESULT_SPEECH = 1;
@@ -100,7 +76,7 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
 
         // Get parameters passed from IntroActivity
         Intent introIntent = getIntent();
-        this.username = introIntent.getExtras().getString("name");
+        this.username = introIntent.getExtras().getString("name");  // from NDNChronoSyncActivity
         this.whiteboard = introIntent.getExtras().getString("whiteboard").replaceAll("\\s", "");
         this.prefix = introIntent.getExtras().getString("prefix");
         Log.d(TAG, "username: " + this.username);
@@ -108,6 +84,8 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
         Log.d(TAG, "prefix: " + this.prefix);
         Toast.makeText(getApplicationContext(), "Welcome " + this.username, Toast.LENGTH_SHORT)
                 .show();
+        applicationNamePrefix = prefix + "/" + whiteboard + "/" + username;
+        applicationBroadcastPrefix = "/ndn/broadcast/whiteboard/" + whiteboard;
 
         // Get relevant View references
         drawingView_canvas = (DrawingView) findViewById(R.id.drawingview_canvas);
@@ -159,11 +137,15 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
             }
         });
 
-        tts = new TextToSpeech(this, this);
+        // Initialize TTS Helper
+        ttsHelper = new TextToSpeechHelper(this);
 
         // Start Ping sequence
         activity_stop = false;
-        new PingTask().execute();
+        dataHistory = new ArrayList<>();  // History of packets generated
+        // Keeping track of what seq nos are requested from each user
+        highestRequested = new HashMap<>();
+        new PingTask(this).execute();
 
         // Show progress dialog for setup
         progressDialog = ProgressDialog.show(this, "Initializing", "Performing ping", true);
@@ -176,12 +158,6 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
     @Override
     protected void onDestroy() {
         super.onDestroy();
-
-        // Shutdown tts!
-        if (tts != null) {
-            tts.stop();
-            tts.shutdown();
-        }
 
         // Set the boolean flag that stops all long running loops
         activity_stop = true;
@@ -314,7 +290,7 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
      * @param jsonData the json representation of the user's action
      */
     public void callback(String jsonData) {
-        dataHist.add(jsonData);  // Add action to history
+        dataHistory.add(jsonData);  // Add action to history
 
         // Create a new thread to publish new sequence numbers
         new Thread(new Runnable() {
@@ -322,7 +298,7 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
             public void run() {
                 try {
                     if (sync != null) {
-                        while (sync.getSequenceNo() < dataHist.size()
+                        while (sync.getSequenceNo() < dataHistory.size()
                                 && sync.getSequenceNo() != -1) {
                             Log.d(TAG, "Seq is now: " + sync.getSequenceNo());
                             sync.publishNextSequenceNo();
@@ -422,418 +398,27 @@ public class WhiteboardActivity extends ActionBarActivity implements TextToSpeec
      * @param ttsStr the String to be spoken out
      */
     public void speakOut(String ttsStr) {
-        if (!ttsSuccessful) {
-            // If Text-To-Speech is not available for some reason
-            Toast.makeText(this, ttsStr, Toast.LENGTH_LONG).show();
-        } else {
-            //noinspection deprecation
-            tts.speak(ttsStr, TextToSpeech.QUEUE_FLUSH, null);
-        }
+        ttsHelper.speakOut(ttsStr);
     }
 
     /**
-     * Handle initialization of Text-To-Speech
-     *
-     * @param status the initialization status of the TTS service
+     * @return the Handler for this activity
      */
     @Override
-    public void onInit(int status) {
-        if (status == TextToSpeech.SUCCESS) {
-            int result = tts.setLanguage(Locale.US);
-            if (result == TextToSpeech.LANG_MISSING_DATA
-                    || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Log.e("TTS", "This Language is not supported");
-                ttsSuccessful = false;
-            }
-        } else {
-            Log.e("TTS", "Initilization Failed!");
-        }
+    public Handler getHandler() {
+        return mHandler;
     }
 
     /**
-     * AsyncTask that performs the ping sequence.
-     * <p/>
-     * It is necessary to perform a Ping before doing a register prefix. Or else, the register
-     * prefix request will be ignored by the hub.
-     * <p/>
-     * ALSO: Initiates task to register application prefix once Ping is successful
+     * @return the progress dialog for initial NDN setup
      */
-    private class PingTask extends AsyncTask<Void, Void, String> {
-        private String m_retVal = "not changed";
-        private boolean m_shouldStop = false;
-
-        @Override
-        protected String doInBackground(Void... voids) {
-            Log.d(TAG, "Ping Task (doInBackground)");
-            try {
-                // Initialize the Face
-                m_face = new Face("localhost");
-
-                // Express the ping Interest
-                m_face.expressInterest(new Name("/ndn/edu/ucla/remap/ping"),
-                        new OnData() {
-                            @Override
-                            public void
-                            onData(Interest interest, Data data) {
-                                m_retVal = data.getContent().toString();
-                                Log.i("NDN", data.getContent().toHex());
-                                m_shouldStop = true;
-                            }
-                        },
-                        new OnTimeout() {
-                            @Override
-                            public void onTimeout(Interest interest) {
-                                m_retVal = "ERROR: Timeout trying";
-                                m_shouldStop = true;
-                            }
-                        });
-
-                // Keep precessing events on the face (necessary)
-                while (!m_shouldStop && !activity_stop) {
-                    m_face.processEvents();
-                    Thread.sleep(100);
-                }
-
-                return m_retVal;
-            } catch (Exception e) {
-                m_retVal = "ERROR: " + e.getMessage();
-                return m_retVal;
-            }
-        }
-
-        @Override
-        protected void onPostExecute(final String result) {
-            Log.d(TAG, "Ping Task (onPostExecute)");
-            if (m_retVal.contains("ERROR:")) {
-                //If error, stop sequence and end activity
-                progressDialog.dismiss();
-                new AlertDialog.Builder(WhiteboardActivity.this)
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setTitle("Error received")
-                        .setMessage(m_retVal)
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                finish();
-                            }
-                        })
-                        .show();
-            } else {
-                // Successful ping, trigger register prefix task
-                progressDialog.setMessage("Registering prefix");
-                Log.d(TAG, "Ping Task succeeded: " + m_retVal);
-                Log.d(TAG, "About to trigger Register Prefix Task");
-                new RegisterPrefixTask().execute();
-            }
-        }
-
+    @Override
+    public ProgressDialog getProgressDialog() {
+        return progressDialog;
     }
 
-    /**
-     * AsyncTask to perform a registeration of this user's prefix.
-     * <p/>
-     * ALSO: Starts the task to register for ChronoSync.
-     */
-    private class RegisterPrefixTask extends AsyncTask<Void, Void, String> {
-        private String m_retVal = "not changed";
-
-        @Override
-        protected String doInBackground(Void... params) {
-            Log.d(TAG, "Register Prefix Task (doInBackground)");
-
-            // Create keychain
-            KeyChain keyChain;
-            try {
-                keyChain = buildTestKeyChain();
-            } catch (SecurityException e) {
-                m_retVal = "ERROR: " + e.getMessage();
-                e.printStackTrace();
-                return m_retVal;
-            }
-
-            // Register keychain with the face
-            keyChain.setFace(m_face);
-            try {
-                m_face.setCommandSigningInfo(keyChain, keyChain.getDefaultCertificateName());
-            } catch (SecurityException e) {
-                m_retVal = "ERROR: " + e.getMessage();
-                e.printStackTrace();
-                return m_retVal;
-            }
-
-            final String nameStr = prefix + "/" + whiteboard + "/" + username; // The user's prefix
-
-            Name base_name = new Name(nameStr);
-            try {
-                // Register the prefix
-                m_face.registerPrefix(base_name, new OnInterestCallback() {
-                    @Override
-                    public void onInterest(Name prefix,
-                                           Interest interest,
-                                           Face face,
-                                           long interestFilterId,
-                                           InterestFilter filter) {
-                        Name interestName = interest.getName();
-                        String lastComp = interestName.get(interestName.size() - 1).toEscapedString();
-                        Log.i("NDN", "Interest received: " + lastComp);
-                        int comp = Integer.parseInt(lastComp) - 1;
-
-                        Data data = new Data();
-                        data.setName(new Name(interestName));
-                        Blob blob;
-                        if (dataHist.size() > comp) {
-                            blob = new Blob(dataHist.get(comp).getBytes());
-                            data.setContent(blob);
-                        } else {
-                            return;
-                        }
-                        try {
-                            face.putData(data);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }, new OnRegisterFailed() {
-                    @Override
-                    public void onRegisterFailed(Name prefix) {
-                        Log.d(TAG, "Register Prefix Task: Registration failed");
-                    }
-                });
-            } catch (IOException | SecurityException e) {
-                m_retVal = "ERROR: " + e.getMessage();
-                e.printStackTrace();
-                return m_retVal;
-            }
-            return m_retVal;
-        }
-
-        @Override
-        protected void onPostExecute(final String result) {
-            if (m_retVal.contains("ERROR:")) {
-                // If error, end the activity
-                progressDialog.dismiss();
-                new AlertDialog.Builder(WhiteboardActivity.this)
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setTitle("Error received")
-                        .setMessage(m_retVal)
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                finish();
-                            }
-                        })
-                        .show();
-            } else {
-                // Start task to register with ChronoSync
-                progressDialog.setMessage("Setting up ChronoSync");
-                Log.d(TAG, "Register Prefix Task ended (onPostExecute)");
-                Log.d(TAG, "About to trigger Register ChronoSync");
-                new RegisterChronoSyncTask().execute();
-            }
-        }
-    }
-
-    /**
-     * AsyncTask to perform registration for ChronoSync.
-     * <p/>
-     * ALSO: Starts the long running thread that keeps preocessing the events on the Face.
-     */
-    private class RegisterChronoSyncTask extends AsyncTask<Void, Void, Void> {
-        int attempt = 1;  // Keep track on current attempt. Try for max 3 attempts.
-
-        // Constructors
-        public RegisterChronoSyncTask() {
-            this(1);
-        }
-
-        public RegisterChronoSyncTask(int attempt) {
-            this.attempt = attempt;
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            try {
-                Log.d(TAG, "ChronoSync Task (doInBackground): Attempt: " + attempt);
-                KeyChain testKeyChain = buildTestKeyChain();
-                sync = new ChronoSync2013(new ChronoSync2013.OnReceivedSyncState() {
-                    @Override
-                    public void onReceivedSyncState(List syncStates, boolean isRecovery) {
-                        for (Object syncStateOb : syncStates) {
-                            ChronoSync2013.SyncState syncState = (ChronoSync2013.SyncState) syncStateOb;
-                            String syncPrefix = syncState.getDataPrefix();
-                            long syncSeq = syncState.getSequenceNo();
-                            // Ignore the initial sync state and sync updates of this user
-                            if (syncSeq == 0 || syncPrefix.contains(username)) {
-                                Log.d(TAG, "SYNC: prefix: " + syncPrefix + " seq: "
-                                        + syncSeq + " ignored. (is Recovery: " + isRecovery + ")");
-                                continue;
-                            }
-                            if (highestRequested.keySet().contains(syncPrefix)) {
-                                long highestSeq = highestRequested.get(syncPrefix);
-
-                                if (syncSeq == highestSeq + 1) {
-                                    // New request
-                                    highestRequested.put(syncPrefix, syncSeq);
-                                } else if (syncSeq <= highestSeq) {
-                                    // Duplicate request, ignore
-                                    Log.d(TAG, "Avoiding starting new task for: "
-                                            + syncPrefix + "/" + syncSeq);
-                                    continue;
-                                } else if (syncSeq - highestSeq > 1) {
-                                    // Gaps found. Recover missing pieces
-                                    Log.d(TAG, "Gaps in SYNC found. Sending Interest for missing pieces.");
-                                    highestSeq++;
-                                    while (highestSeq <= syncSeq) {
-                                        new FetchChangesTask(syncPrefix + "/" + highestSeq).execute();
-                                        highestSeq++;
-                                    }
-                                    highestRequested.put(syncPrefix, syncSeq);
-                                }
-                            } else {
-                                highestRequested.put(syncPrefix, syncSeq);
-                            }
-                            String syncNameStr = syncPrefix + "/" + syncSeq;
-                            Log.d(TAG, "SYNC: " + syncNameStr + " (is Recovery: " + isRecovery + ")");
-                            new FetchChangesTask(syncNameStr).execute();
-                        }
-
-                    }
-                }, new ChronoSync2013.OnInitialized() {
-                    @Override
-                    public void onInitialized() {
-                        mHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                // Done registering ChronoSync
-                                progressDialog.dismiss();
-                            }
-                        });
-                        Log.d(TAG, "ChronoSync onInitialized");
-                    }
-                }, new Name(prefix + "/" + whiteboard + "/" + username), // App data prefix
-                        new Name("/ndn/broadcast/whiteboard/" + whiteboard), // Broadcast prefix
-                        0l,
-                        m_face,
-                        testKeyChain,
-                        testKeyChain.getDefaultCertificateName(),
-                        5000.0, new OnRegisterFailed() {
-                    @Override
-                    public void onRegisterFailed(Name prefix) {
-                        // Handle failure of this register attempt. Try again.
-                        Log.d(TAG, "ChronoSync registration failed, Attempt: " + attempt);
-                        Log.d(TAG, "Starting next attempt");
-                        new RegisterChronoSyncTask(attempt + 1).execute();
-                    }
-                }
-                );
-            } catch (IOException | SecurityException e) {
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void aVoid) {
-            // Start the long running thread that keeps processing the events on the face every
-            // few milliseconds
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (!activity_stop) {
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException ie) {
-                            ie.printStackTrace();
-                        }
-                        try {
-                            m_face.processEvents();
-                        } catch (IOException | EncodingException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }).start();
-        }
-    }
-
-    /**
-     * AsyncTask to fetch new packets from other user's when ChronoSync tells that a new packet may
-     * be available.
-     */
-    private class FetchChangesTask extends AsyncTask<Void, Void, Void> {
-        String namePrefixStr;
-        boolean m_shouldStop = false;
-
-        // Constructors
-        public FetchChangesTask(String namePrefixStr) {
-            this.namePrefixStr = namePrefixStr;
-        }
-
-        String m_retVal;
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            Log.d(TAG, "Fetch Task (doInBackground) for prefix: " + namePrefixStr);
-            String nameStr = namePrefixStr;
-
-            try {
-                m_face.expressInterest(new Name(nameStr), new OnData() {
-                    @Override
-                    public void
-                    onData(Interest interest, Data data) {
-                        // Success, send data to be drawn by the Drawing view
-                        m_retVal = data.getContent().toString();
-                        m_shouldStop = true;
-                        Log.d(TAG, "Got content: " + m_retVal);
-                        mHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                drawingView_canvas.callback(m_retVal);
-                            }
-                        });
-
-                    }
-                }, new OnTimeout() {
-                    @Override
-                    public void onTimeout(Interest interest) {
-                        // Failure, try again
-                        m_retVal = null;
-                        m_shouldStop = true;
-                        Log.d(TAG, "Got Timeout " + namePrefixStr);
-                        if (!activity_stop) {
-                            new FetchChangesTask(namePrefixStr).execute();
-                        }
-                    }
-                });
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void data) {
-            Log.d(TAG, "Fetch Task (onPostExecute)");
-        }
-    }
-
-    /**
-     * Setup an in-memory KeyChain with a default identity.
-     *
-     * @return keyChain object
-     * @throws net.named_data.jndn.security.SecurityException
-     */
-    public static KeyChain buildTestKeyChain() throws SecurityException {
-        MemoryIdentityStorage identityStorage = new MemoryIdentityStorage();
-        MemoryPrivateKeyStorage privateKeyStorage = new MemoryPrivateKeyStorage();
-        IdentityManager identityManager = new IdentityManager(identityStorage, privateKeyStorage);
-        KeyChain keyChain = new KeyChain(identityManager);
-        try {
-            keyChain.getDefaultCertificateName();
-        } catch (net.named_data.jndn.security.SecurityException e) {
-            keyChain.createIdentity(new Name("/test/identity"));
-            keyChain.getIdentityManager().setDefaultIdentity(new Name("/test/identity"));
-        }
-        return keyChain;
+    @Override
+    public void handleDataReceived(String data) {
+        drawingView_canvas.callback(data);
     }
 }

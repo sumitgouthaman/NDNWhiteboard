@@ -1,4 +1,4 @@
-package edu.ucla.cs.ndnwhiteboard;
+package edu.ucla.cs.ndnwhiteboard.custom_views;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -26,6 +26,9 @@ import org.json.JSONObject;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 
+import edu.ucla.cs.ndnwhiteboard.R;
+import edu.ucla.cs.ndnwhiteboard.WhiteboardActivity;
+
 /**
  * DrawingView: Custom view that handles the drawing for the whiteboard
  */
@@ -42,7 +45,8 @@ public class DrawingView extends View {
     private Bitmap canvasBitmap;
 
     // Colors for the pen
-    private int[] colors = {Color.BLACK,
+    private int[] colors = {
+            Color.BLACK,
             Color.RED,
             Color.BLUE,
             0xFF458B00,  // Dark green
@@ -63,7 +67,7 @@ public class DrawingView extends View {
      * Contructor
      *
      * @param context the current Activity context
-     * @param attrs attribute set
+     * @param attrs   attribute set
      */
     public DrawingView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -92,8 +96,8 @@ public class DrawingView extends View {
     /**
      * Overriding the onSizeChanged method of the View class
      *
-     * @param w new width
-     * @param h new height
+     * @param w    new width
+     * @param h    new height
      * @param oldw old width
      * @param oldh old height
      */

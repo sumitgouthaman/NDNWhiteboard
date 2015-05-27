@@ -89,7 +89,7 @@
         <view
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
-            class="edu.ucla.cs.ndnwhiteboard.DrawingView"
+            class="edu.ucla.cs.ndnwhiteboard.custom_views.DrawingView"
             android:id="@+id/drawingview_canvas"
             android:layout_gravity="center_horizontal"
             android:background="#ffffffff" />
