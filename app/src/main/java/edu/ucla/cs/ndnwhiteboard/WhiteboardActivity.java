@@ -161,6 +161,7 @@ public class WhiteboardActivity extends NDNChronoSyncActivity { // ActionBarActi
 
         // Set the boolean flag that stops all long running loops
         activity_stop = true;
+        ttsHelper.stopTTS();
 
         // Shut down face if it is not null
         if (m_face != null) {
