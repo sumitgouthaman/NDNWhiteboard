@@ -62,8 +62,8 @@ public class DrawingView extends View {
     /**
      * Contructor
      *
-     * @param context
-     * @param attrs
+     * @param context the current Activity context
+     * @param attrs attribute set
      */
     public DrawingView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -92,10 +92,10 @@ public class DrawingView extends View {
     /**
      * Overriding the onSizeChanged method of the View class
      *
-     * @param w
-     * @param h
-     * @param oldw
-     * @param oldh
+     * @param w new width
+     * @param h new height
+     * @param oldw old width
+     * @param oldh old height
      */
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
@@ -115,7 +115,7 @@ public class DrawingView extends View {
     /**
      * Overrriding the onDraw method of the View class
      *
-     * @param canvas
+     * @param canvas the canvas to draw the view
      */
     @Override
     protected void onDraw(Canvas canvas) {
@@ -135,9 +135,10 @@ public class DrawingView extends View {
     /**
      * Overriding onTouchEvent method of the View class
      *
-     * @param event
+     * @param event the current touch event
      * @return true because event was handled
      */
+    @SuppressWarnings("NullableProblems")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         // Sending coordinates only to 3 decimal values
@@ -359,60 +360,69 @@ public class DrawingView extends View {
                 boolean isEraserBefore = isEraser;
                 String type = jsonObject.get("type").toString();
 
-                if (type.equals("pen")) {
-                    // If type pen, extract color
-                    int color = jsonObject.getInt("color");
-                    setColor(color);
-                } else if (type.equals("eraser")) {
-                    setEraser();
-                } else if (type.equals("undo")) {
-                    if (history.isEmpty()) {
-                        return;
-                    }
-                    String userStr = jsonObject.getString("user");
-                    for (int i = history.size() - 1; i >= 0; i--) {
-                        if (history.get(i).contains("\"user\":\"" + userStr + "\"")) {
-                            history.remove(i);
-                            break;
+                switch (type) {
+                    case "pen":
+                        // If type pen, extract color
+                        int color = jsonObject.getInt("color");
+                        setColor(color);
+                        break;
+                    case "eraser":
+                        setEraser();
+                        break;
+                    case "undo":
+                        if (history.isEmpty()) {
+                            return;
                         }
+                        String userStr = jsonObject.getString("user");
+                        for (int i = history.size() - 1; i >= 0; i--) {
+                            if (history.get(i).contains("\"user\":\"" + userStr + "\"")) {
+                                history.remove(i);
+                                break;
+                            }
+                        }
+                        drawCanvas.drawColor(Color.WHITE);
+                        invalidate();
+                        for (String str : history) {
+                            parseJSON(str, false);
+                        }
+                        break;
+                    case "clear":
+                        history.clear();
+                        drawCanvas.drawColor(Color.WHITE);
+                        invalidate();
+                        break;
+                    case "text": {
+                        // Create a toast of the message text
+                        String message = jsonObject.getString("data");
+                        LayoutInflater inflater = (LayoutInflater) whiteboardActivity.getSystemService(
+                                Context.LAYOUT_INFLATER_SERVICE);
+                        View layout = inflater.inflate(R.layout.activity_text,
+                                (ViewGroup) findViewById(R.id.toast_layout_root));
+
+                        TextView text = (TextView) layout.findViewById(R.id.text_message);
+                        text.setText(message);
+
+                        String username = jsonObject.getString("user");
+                        TextView text_username = (TextView) layout.findViewById(R.id.text_username);
+                        text_username.setText(username + ": ");
+
+                        Toast toast = new Toast(whiteboardActivity);
+                        toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
+                        toast.setDuration(Toast.LENGTH_LONG);
+                        toast.setView(layout);
+                        toast.show();
+
+                        break;
                     }
-                    drawCanvas.drawColor(Color.WHITE);
-                    invalidate();
-                    for (String str : history) {
-                        parseJSON(str, false);
+                    case "speech": {
+                        String message = jsonObject.getString("data");
+                        String username = jsonObject.getString("user");
+                        String ttsStr = username + " says, " + message;
+                        whiteboardActivity.speakOut(ttsStr);
+                        break;
                     }
-                } else if (type.equals("clear")) {
-                    history.clear();
-                    drawCanvas.drawColor(Color.WHITE);
-                    invalidate();
-                } else if (type.equals("text")) {
-                    // Create a toast of the message text
-                    String message = jsonObject.getString("data");
-                    LayoutInflater inflater = (LayoutInflater) whiteboardActivity.getSystemService(
-                            Context.LAYOUT_INFLATER_SERVICE);
-                    View layout = inflater.inflate(R.layout.activity_text,
-                            (ViewGroup) findViewById(R.id.toast_layout_root));
-
-                    TextView text = (TextView) layout.findViewById(R.id.text_message);
-                    text.setText(message);
-
-                    String username = jsonObject.getString("user");
-                    TextView text_username = (TextView) layout.findViewById(R.id.text_username);
-                    text_username.setText(username + ": ");
-
-                    Toast toast = new Toast(whiteboardActivity);
-                    toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
-                    toast.setDuration(Toast.LENGTH_LONG);
-                    toast.setView(layout);
-                    toast.show();
-
-                } else if (type.equals("speech")) {
-                    String message = jsonObject.getString("data");
-                    String username = jsonObject.getString("user");
-                    String ttsStr = username + " says, " + message;
-                    whiteboardActivity.speakOut(ttsStr);
-                } else {
-                    throw new JSONException("Unrecognized string: " + string);
+                    default:
+                        throw new JSONException("Unrecognized string: " + string);
                 }
 
                 if (type.equals("pen") || type.equals("eraser")) {
