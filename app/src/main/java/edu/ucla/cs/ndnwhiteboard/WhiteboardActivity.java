@@ -7,7 +7,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.speech.RecognizerIntent;
 import android.text.InputType;
@@ -19,26 +18,16 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
-import net.named_data.jndn.security.SecurityException;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.text.Format;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Locale;
 
 import edu.ucla.cs.ndnwhiteboard.custom_views.DrawingView;
 import edu.ucla.cs.ndnwhiteboard.helpers.TextToSpeechHelper;
+import edu.ucla.cs.ndnwhiteboard.helpers.Utils;
 import edu.ucla.cs.ndnwhiteboard.interfaces.NDNChronoSyncActivity;
-import edu.ucla.cs.ndnwhiteboard.tasks.PingTask;
 
 /**
  * WhiteboardActivity: Main activity that displays the whiteboard for drawing
@@ -140,12 +129,8 @@ public class WhiteboardActivity extends NDNChronoSyncActivity { // ActionBarActi
         // Initialize TTS Helper
         ttsHelper = new TextToSpeechHelper(this);
 
-        // Start Ping sequence
-        activity_stop = false;
-        dataHistory = new ArrayList<>();  // History of packets generated
-        // Keeping track of what seq nos are requested from each user
-        highestRequested = new HashMap<>();
-        new PingTask(this).execute();
+        // Ping -> RegisterPrefix -> ChronoSyncRegistration
+        initialize();
 
         // Show progress dialog for setup
         progressDialog = ProgressDialog.show(this, "Initializing", "Performing ping", true);
@@ -292,27 +277,7 @@ public class WhiteboardActivity extends NDNChronoSyncActivity { // ActionBarActi
      */
     public void callback(String jsonData) {
         dataHistory.add(jsonData);  // Add action to history
-
-        // Create a new thread to publish new sequence numbers
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    if (sync != null) {
-                        while (sync.getSequenceNo() < dataHistory.size()
-                                && sync.getSequenceNo() != -1) {
-                            Log.d(TAG, "Seq is now: " + sync.getSequenceNo());
-                            sync.publishNextSequenceNo();
-                            Log.d(TAG, "Published next seq number. Seq is now: "
-                                    + sync.getSequenceNo());
-                        }
-                    }
-                } catch (IOException | SecurityException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
-
+        increaseSequenceNos();
         Log.d(TAG, "Stroke generated: " + jsonData);
     }
 
@@ -348,49 +313,12 @@ public class WhiteboardActivity extends NDNChronoSyncActivity { // ActionBarActi
      * phone gallery
      */
     private void confirmSave() {
-        new AlertDialog.Builder(this)
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .setTitle("Confirm canvas save")
-                .setMessage("Do you want to save the canvas?")
-                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        drawingView_canvas.setDrawingCacheEnabled(true);
-                        Date date = new Date();
-                        Format formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss", Locale.US);
-                        String fileName = formatter.format(date) + ".png";
-                        if (android.os.Environment.getExternalStorageState()
-                                .equals(android.os.Environment.MEDIA_MOUNTED)) {
-                            File sdCard = Environment.getExternalStorageDirectory();
-                            File dir = new File(sdCard.getAbsolutePath() + "/NDN_Whiteboard");
-                            boolean directoryCreated = dir.mkdirs();
-                            if (!directoryCreated) {
-                                Toast.makeText(getApplicationContext(), "Save Failed!",
-                                        Toast.LENGTH_SHORT).show();
-                            }
-                            File file = new File(dir, fileName);
-                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                            drawingView_canvas.getDrawingCache()
-                                    .compress(Bitmap.CompressFormat.PNG, 100, baos);
-                            FileOutputStream f;
-                            try {
-                                f = new FileOutputStream(file);
-                                f.write(baos.toByteArray());
-                                f.flush();
-                                f.close();
-                                Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT)
-                                        .show();
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                                Toast.makeText(getApplicationContext(), "Save Failed!",
-                                        Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                        drawingView_canvas.destroyDrawingCache();
-                    }
-                })
-                .setNegativeButton("No", null)
-                .show();
+        drawingView_canvas.setDrawingCacheEnabled(true);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        drawingView_canvas.getDrawingCache()
+                .compress(Bitmap.CompressFormat.PNG, 100, baos);
+        Utils.saveWhiteboardImage(this, baos);
+        drawingView_canvas.destroyDrawingCache();
     }
 
     /**

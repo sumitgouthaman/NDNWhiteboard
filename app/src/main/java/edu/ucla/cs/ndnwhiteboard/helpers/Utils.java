@@ -1,19 +1,35 @@
 package edu.ucla.cs.ndnwhiteboard.helpers;
 
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.media.MediaScannerConnection;
+import android.net.Uri;
+import android.os.Environment;
+import android.util.Log;
+import android.widget.Toast;
+
 import net.named_data.jndn.Name;
 import net.named_data.jndn.security.KeyChain;
 import net.named_data.jndn.security.identity.IdentityManager;
 import net.named_data.jndn.security.identity.MemoryIdentityStorage;
 import net.named_data.jndn.security.identity.MemoryPrivateKeyStorage;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.Locale;
 
 /**
  * A simple class with utility functions.
  */
 public class Utils {
+
     /**
      * Generates name for whiteboard.
      * <p/>
@@ -46,6 +62,60 @@ public class Utils {
             sb.append(seed.charAt(random));
         }
         return sb.toString();
+    }
+
+    /**
+     * Function to confirm that the user want's to save the current whiteboard state as a image in
+     * phone gallery
+     *
+     * @param context the current activity context
+     * @param baos    the image represented as a Byte Array Output Stream
+     */
+    public static void saveWhiteboardImage(final Context context, final ByteArrayOutputStream baos) {
+        new AlertDialog.Builder(context)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setTitle("Confirm canvas save")
+                .setMessage("Do you want to save the canvas?")
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        Date date = new Date();
+                        Format formatter = new SimpleDateFormat("yyyy-MM-dd_hh-mm-ss", Locale.US);
+                        String fileName = formatter.format(date) + ".png";
+                        if (android.os.Environment.getExternalStorageState()
+                                .equals(android.os.Environment.MEDIA_MOUNTED)) {
+                            File sdCard = Environment.getExternalStorageDirectory();
+                            File dir = new File(sdCard.getAbsolutePath() + "/NDN_Whiteboard");
+                            boolean directoryCreated = dir.mkdirs();
+
+                            File file = new File(dir, fileName);
+
+                            FileOutputStream f;
+                            try {
+                                f = new FileOutputStream(file);
+                                f.write(baos.toByteArray());
+                                f.flush();
+                                f.close();
+                                Toast.makeText(context, "Saved", Toast.LENGTH_SHORT)
+                                        .show();
+                                // Trigger gallery refresh on photo save
+                                MediaScannerConnection.scanFile(
+                                        context,
+                                        new String[]{file.toString()},
+                                        null,
+                                        new MediaScannerConnection.OnScanCompletedListener() {
+                                            public void onScanCompleted(String path, Uri uri) {}
+                                        });
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                Toast.makeText(context, "Save Failed!",
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }
+                })
+                .setNegativeButton("No", null)
+                .show();
     }
 
     /**
