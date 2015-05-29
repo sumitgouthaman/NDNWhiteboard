@@ -422,6 +422,25 @@ public class DrawingView extends View {
                         String message = jsonObject.getString("data");
                         String username = jsonObject.getString("user");
                         String ttsStr = username + " says, " + message;
+
+                        // Create a toast of the message text
+                        LayoutInflater inflater = (LayoutInflater) whiteboardActivity.getSystemService(
+                                Context.LAYOUT_INFLATER_SERVICE);
+                        View layout = inflater.inflate(R.layout.activity_text,
+                                (ViewGroup) findViewById(R.id.toast_layout_root));
+
+                        TextView text = (TextView) layout.findViewById(R.id.text_message);
+                        text.setText(message);
+
+                        TextView text_username = (TextView) layout.findViewById(R.id.text_username);
+                        text_username.setText("\uD83D\uDCAC " + username + ": ");
+
+                        Toast toast = new Toast(whiteboardActivity);
+                        toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
+                        toast.setDuration(Toast.LENGTH_LONG);
+                        toast.setView(layout);
+                        toast.show();
+
                         whiteboardActivity.speakOut(ttsStr);
                         break;
                     }
