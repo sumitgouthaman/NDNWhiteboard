@@ -129,11 +129,12 @@ public class WhiteboardActivity extends NDNChronoSyncActivity { // ActionBarActi
         // Initialize TTS Helper
         ttsHelper = new TextToSpeechHelper(this);
 
+        // Show progress dialog for setup
+        progressDialog = ProgressDialog.show(this, "Initializing", "Performing ping", true);
+
         // Ping -> RegisterPrefix -> ChronoSyncRegistration
         initialize();
 
-        // Show progress dialog for setup
-        progressDialog = ProgressDialog.show(this, "Initializing", "Performing ping", true);
         Log.d(TAG, "Finished onCreate");
     }
 
@@ -193,9 +194,7 @@ public class WhiteboardActivity extends NDNChronoSyncActivity { // ActionBarActi
      * Listen to user, convert to text and send.
      */
     private void speechMessage() {
-        Intent intent = new Intent(
-                RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, "en-US");
         try {
             startActivityForResult(intent, RESULT_SPEECH);
