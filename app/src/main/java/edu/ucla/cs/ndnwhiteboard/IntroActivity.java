@@ -27,7 +27,7 @@ public class IntroActivity extends ActionBarActivity {
         ((EditText) findViewById(R.id.whiteboardName)).setText(Utils.genWhiteboardName());
 
         // Display the randomly generated username
-        ((EditText) findViewById(R.id.userName)).setText(Utils.generateRandomName());
+        ((EditText) findViewById(R.id.userName)).setText(Utils.generateEnglishNames(this));
 
         Button startButton = (Button) findViewById(R.id.startButton);
         startButton.setOnClickListener(new View.OnClickListener() {

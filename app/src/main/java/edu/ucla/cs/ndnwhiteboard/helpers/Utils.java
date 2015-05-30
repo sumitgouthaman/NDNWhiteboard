@@ -3,11 +3,9 @@ package edu.ucla.cs.ndnwhiteboard.helpers;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Environment;
-import android.util.Log;
 import android.widget.Toast;
 
 import net.named_data.jndn.Name;
@@ -24,6 +22,8 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+
+import edu.ucla.cs.ndnwhiteboard.R;
 
 /**
  * A simple class with utility functions.
@@ -62,6 +62,20 @@ public class Utils {
             sb.append(seed.charAt(random));
         }
         return sb.toString();
+    }
+
+    /**
+     * Function to return a random english name from a predefined set.
+     *
+     * @param context the current context
+     * @return the random name
+     */
+    public static String generateEnglishNames(Context context) {
+        String[] englishNames = context.getResources().getStringArray(R.array.english_names);
+        int length = englishNames.length;
+        int randomIndex = (int) (Math.random() * (float) length);
+        String randomName = englishNames[randomIndex];
+        return randomName;
     }
 
     /**
@@ -104,7 +118,8 @@ public class Utils {
                                         new String[]{file.toString()},
                                         null,
                                         new MediaScannerConnection.OnScanCompletedListener() {
-                                            public void onScanCompleted(String path, Uri uri) {}
+                                            public void onScanCompleted(String path, Uri uri) {
+                                            }
                                         });
                             } catch (Exception e) {
                                 e.printStackTrace();
