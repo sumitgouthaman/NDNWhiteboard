@@ -42,10 +42,6 @@ public class WhiteboardActivity extends NDNChronoSyncActivity { // ActionBarActi
     private String whiteboard;
     private String prefix;
 
-    // NDN related references
-    //public Face m_face;          // References to the Face being used
-    //public ChronoSync2013 sync;  // References to the ChronoSync object
-
     Handler mHandler = new Handler();      // To handle view access from other threads
     ProgressDialog progressDialog = null;  // Progress dialog for initial setup
     TextToSpeechHelper ttsHelper; // Helper for TTS
@@ -146,14 +142,9 @@ public class WhiteboardActivity extends NDNChronoSyncActivity { // ActionBarActi
         super.onDestroy();
 
         // Set the boolean flag that stops all long running loops
-        activity_stop = true;
+        stop();
         ttsHelper.stopTTS();
 
-        // Shut down face if it is not null
-        if (m_face != null) {
-            m_face.shutdown();
-            Log.d(TAG, "Shutting down Face");
-        }
         Log.d(TAG, "Finished onDestroy");
     }
 
@@ -314,8 +305,7 @@ public class WhiteboardActivity extends NDNChronoSyncActivity { // ActionBarActi
     private void confirmSave() {
         drawingView_canvas.setDrawingCacheEnabled(true);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        drawingView_canvas.getDrawingCache()
-                .compress(Bitmap.CompressFormat.PNG, 100, baos);
+        drawingView_canvas.getDrawingCache().compress(Bitmap.CompressFormat.PNG, 100, baos);
         Utils.saveWhiteboardImage(this, baos);
         drawingView_canvas.destroyDrawingCache();
     }

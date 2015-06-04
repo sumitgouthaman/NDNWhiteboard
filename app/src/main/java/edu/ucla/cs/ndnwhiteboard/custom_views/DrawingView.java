@@ -64,7 +64,7 @@ public class DrawingView extends View {
     private String TAG = DrawingView.class.getSimpleName(); // TAG for logging
 
     /**
-     * Contructor
+     * Constructor
      *
      * @param context the current Activity context
      * @param attrs   attribute set

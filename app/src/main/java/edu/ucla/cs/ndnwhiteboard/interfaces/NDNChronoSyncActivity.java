@@ -18,7 +18,7 @@ public abstract class NDNChronoSyncActivity extends NDNActivity {
     public ChronoSync2013 sync;
     public String username;
 
-    // Keeping track of what seq nos are requested from each user
+    // Keeping track of what seq #'s are requested from each user
     public Map<String, Long> highestRequested;
 
     public String applicationBroadcastPrefix;
@@ -32,13 +32,13 @@ public abstract class NDNChronoSyncActivity extends NDNActivity {
         // Start Ping sequence
         activity_stop = false;
         dataHistory = new ArrayList<>();  // History of packets generated
-        // Keeping track of what seq nos are requested from each user
+        // Keeping track of what seq #'s are requested from each user
         highestRequested = new HashMap<>();
         new PingTask(this).execute();
     }
 
     /**
-     * Bring sequence nos up tp par when a new piece of data is produced.
+     * Bring sequence #'s up to par when a new piece of data is produced.
      */
     public void increaseSequenceNos() {
         // Create a new thread to publish new sequence numbers
