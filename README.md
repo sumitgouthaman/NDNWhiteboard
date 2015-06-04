@@ -11,7 +11,7 @@ entity.
 For more infomation about NDN, visit: [Named Data Networking](http://named-data.net/).
 
 ###Recorded Demos
-You can find the recorded demos in GIF format at [Demo Gifs]("/Demo GIFs").
+You can find the recorded demos in GIF format at [Demo Gifs](/DemoGIFs).
 
 ###Screenshots
 ![Screenshots](/images/Screenshots.png)
